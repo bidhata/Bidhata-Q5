@@ -38,6 +38,23 @@ Things to keep in mind:
 - Vector icons: Android 6 has no `fillType` and chokes on compact SVG arcs. Convert icons with
   `tools/svg2vd.py`, it handles both.
 
+### Extending the launcher without touching it
+
+- **Home tiles** come from `/sdcard/Bidhata/home.json` (long-press a tile on the player to edit
+  it). Any installed app can be a tile; no code needed.
+- **A row on the More page**: give one of your app's activities this intent filter. Its label is
+  the row text, and a tap opens it. Nothing of yours runs inside the launcher.
+
+  ```xml
+  <intent-filter>
+      <action android:name="org.bidhata.launcher.MORE_ROW" />
+      <category android:name="android.intent.category.DEFAULT" />
+  </intent-filter>
+  ```
+- **A background feature inside the launcher** (like the wired-headphone Bluetooth switch) is a
+  `Module`: implement the five methods, add it to `Modules.ALL`, and it gets its own switch under
+  Background features. A module that throws on start is left off; the home screen carries on.
+
 ## 3. Build the whole ROM
 
 You need Linux (or WSL2), ~60 GB of disk, 16 GB of RAM is comfortable, Docker, and TIMMKOO's

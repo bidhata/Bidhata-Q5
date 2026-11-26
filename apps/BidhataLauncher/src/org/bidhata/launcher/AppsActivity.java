@@ -39,6 +39,7 @@ public class AppsActivity extends Activity {
                 startActivity(new Intent(AppsActivity.this, PowerActivity.class));
             }
         });
+        Extensions.addMoreRows(this, (android.widget.LinearLayout) findViewById(R.id.ext_rows));
         grid = (GridView) findViewById(R.id.grid);
         AppList.get(this, appsReady);
     }

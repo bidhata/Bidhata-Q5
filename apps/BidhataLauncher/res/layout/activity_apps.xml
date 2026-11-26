@@ -97,6 +97,13 @@
         android:textColor="@color/text"
         android:textSize="15sp" />
 
+    <!-- rows other apps add (see Extensions.java); empty and zero-height on a plain install -->
+    <LinearLayout
+        android:id="@+id/ext_rows"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical" />
+
     <GridView
         android:id="@+id/grid"
         android:layout_width="match_parent"
