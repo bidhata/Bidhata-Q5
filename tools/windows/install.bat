@@ -3,6 +3,7 @@ rem First install of Bidhata-Q5 from a PC: works from stock firmware or any earl
 rem Writes the Bidhata partition table, TWRP, boot and system, and clears cache and data.
 rem The player's bootloader (preloader, lk) is never touched.
 setlocal
+set "LK=" & set "OK="
 call "%~dp0_common.bat" || (pause & exit /b 1)
 for %%F in (ebr1-q5.bin twrp-q5.img boot.img system.img zeros-1m.bin) do (
     if not exist "%HERE%%%F" (echo  Missing file: %%F. Unpack the whole package again. & pause & exit /b 1)
@@ -15,7 +16,7 @@ if /i not "%~1"=="nobackup" (
         echo  No backup found. Run backup.bat first: it is your way back to stock.
         pause & exit /b 1
     )
-    set /p LK=<"%HERE%backup\bootloader.txt"
+    if exist "%HERE%backup\bootloader.txt" set /p LK=<"%HERE%backup\bootloader.txt"
 )
 if /i not "%~1"=="nobackup" if not "%LK%"=="stock" (
     echo.
@@ -44,6 +45,7 @@ call "%HERE%_common.bat" :hexsize BS "%HERE%boot.img"
 call "%HERE%_common.bat" :connect
 
 rem write, then read every piece back for checking
+echo  Working... this window stays quiet for about 25 minutes. That is normal.
 "%PY%" -u mtk.py multi "wo 0x880000 0x200 %HERE%ebr1-q5.bin;wo 0x3580000 0x1000000 %HERE%twrp-q5.img;wo 0x2580000 0x1000000 %HERE%boot.img;wo 0x5900000 0x54600000 %HERE%system.img;wo 0x59F00000 0x100000 %HERE%zeros-1m.bin;wo 0x61D00000 0x100000 %HERE%zeros-1m.bin;ro 0x880000 0x200 %CHK%\ebr1-q5.bin;ro 0x3580000 %TS% %CHK%\twrp-q5.img;ro 0x2580000 %BS% %CHK%\boot.img;ro 0x5900000 0x54600000 %CHK%\system.img" > "%HERE%install.log" 2>&1
 
 set "BAD="

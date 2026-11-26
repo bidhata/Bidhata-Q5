@@ -12,7 +12,18 @@ where python >nul 2>&1 || (
     echo  "Add python.exe to PATH" on the first screen. Then run this again.
     pause & exit /b 1
 )
-if exist "%HERE%mtkclient\.venv\Scripts\python.exe" (
+set "_T=%HERE: =%"
+set "_T=%_T:(=%"
+set "_T=%_T:)=%"
+set "_T=%_T:&=%"
+if "%_T%"=="%HERE%" goto pathok
+echo  This folder's path contains a space or a bracket:
+echo    "%HERE%"
+echo  Move the whole folder somewhere simple, for example C:\Q5, and run this again.
+pause & exit /b 1
+:pathok
+rem the marker is written only after every step worked, so a half-finished setup is redone
+if exist "%HERE%mtkclient\.venv\q5-ok" (
     echo  mtkclient is already set up. Nothing to do.
     pause & exit /b 0
 )
@@ -32,6 +43,7 @@ python -m venv "%HERE%mtkclient\.venv" || (echo  Could not create the Python env
     echo  Installing packages failed. Check the internet connection and try again.
     pause & exit /b 1
 )
+> "%HERE%mtkclient\.venv\q5-ok" echo ok
 echo.
 echo  Done. Next: install the USB driver with Zadig (see the guide), then run backup.bat.
 pause

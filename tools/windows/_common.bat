@@ -3,19 +3,26 @@ rem Shared bits for the Bidhata-Q5 PC scripts. Not meant to be run on its own.
 if not "%~1"=="" goto %~1
 
 set "HERE=%~dp0"
-if not "%HERE: =%"=="%HERE%" (
-    echo.
-    echo  This folder's path contains a space:  %HERE%
-    echo  mtkclient can't handle that. Move the whole folder somewhere simple,
-    echo  for example C:\Q5, and run the script again.
-    exit /b 1
-)
+rem spaces break mtkclient, and brackets or ^& break these scripts ("Bidhata-Q5 (1)" from a
+rem second download is the usual way to get one). Checked outside any ( ) block on purpose.
+set "_T=%HERE: =%"
+set "_T=%_T:(=%"
+set "_T=%_T:)=%"
+set "_T=%_T:&=%"
+if "%_T%"=="%HERE%" goto pathok
+echo.
+echo  This folder's path contains a space or a bracket:
+echo    "%HERE%"
+echo  The tools can't handle that. Move the whole folder somewhere simple,
+echo  for example C:\Q5, and run the script again.
+exit /b 1
+:pathok
 set "PY=%HERE%mtkclient\.venv\Scripts\python.exe"
-if not exist "%PY%" (
-    echo.
-    echo  mtkclient isn't set up yet. Run setup-mtkclient.bat first.
-    exit /b 1
-)
+if exist "%HERE%mtkclient\.venv\q5-ok" goto pyok
+echo.
+echo  mtkclient isn't set up yet. Run setup-mtkclient.bat first.
+exit /b 1
+:pyok
 cd /d "%HERE%mtkclient"
 rem a leftover session file from an earlier run makes mtkclient talk to a dead session
 if exist .state del .state
@@ -32,9 +39,10 @@ echo  ------------------------------------------------------------------
 pause
 echo.
 echo  NOW press the RESET hole once (a short press is enough).
-echo  The player restarts and this window catches it in the first seconds.
-echo  The screen may stay black; that's normal. Leave the cable alone until
-echo  this window says it's finished. If nothing happens within a minute,
+echo.
+echo  How to tell it worked: the player's screen stays BLACK. Then just wait;
+echo  this window says so when it has finished, and stays quiet until then.
+echo  If the player shows its logo and starts up normally, it was missed:
 echo  press RESET once more.
 echo.
 exit /b 0

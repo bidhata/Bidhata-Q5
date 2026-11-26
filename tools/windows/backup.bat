@@ -18,6 +18,7 @@ call "%HERE%_common.bat" :connect
 
 rem 0x800000..0x62000000 holds the partition table, calibration, bootloader, boot, recovery,
 rem system and the start of cache/data, in both the stock and the Bidhata layout.
+echo  Working... this window stays quiet for 10-15 minutes. That is normal.
 "%PY%" -u mtk.py multi "ro 0x800000 0x61800000 %OUT%\q5-backup.bin;ro 0x880000 0x200 %OUT%\ebr1.bin;ro 0xC00000 0x500000 %OUT%\nvram.bin;ro 0x1100000 0xA00000 %OUT%\protect_f.bin;ro 0x1B00000 0xA00000 %OUT%\protect_s.bin;ro 0x2520000 0x40000 %OUT%\lk-head.bin;ro 0x0 0x400000 %OUT%\preloader.bin --parttype boot1" > "%OUT%\backup.log" 2>&1
 
 for %%F in ("%OUT%\q5-backup.bin") do set "SZ=%%~zF"
