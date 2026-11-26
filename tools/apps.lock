@@ -1,0 +1,11 @@
+# Apps installed on first boot (copied to /system/preinstall, installed by q5_preinstall.sh).
+# One line per app: file name, sha256, download URL(s). tools/fetch-apps.sh checks every hash.
+# To add or update an app: drop the APK in, run `sha256sum`, add a line, done.
+com.hiby.music_5586.apk                  0b23d8b3a1497cdc4fe70b7212bdde13a9f59068923ac4f531bd2d2526829e3e  https://pool.apk.aptoide.com/appupdater/com-hiby-music-5586-77545736-7e2de033dfb9f176614da801c5fa4d46.apk
+helium314.keyboard_4201.apk              69b2b2fb349934371b1ed2d3569541cc0bda987f8aaf5eb5f5b157961f76de86  fdroid
+me.zhanghai.android.files_40.apk         2fe900bf43d725b655008d438f5ca46d0da0f301e3784403b5b96c3fc2df6e8a  fdroid
+net.gsantner.markor_164.apk              c29412e02d03e4f0511746a1bcef48c6b73fc1f70c1024fbf04903b0b3f4c485  fdroid
+org.coolreader_32582.apk                 2ad12ae295ffd5d6fe2d34e46fce226f671fed3dc10bc65fa5a0df337ac9305f  https://github.com/buggins/coolreader/releases/download/cr3.2.58/cr3.2.58-armeabi-v7a-release.apk
+org.fdroid.fdroid_1023052.apk            985f5181d48bb6bafd54083a048b391271e0ab28385881cc41294fb01a222762  fdroid
+org.solovyev.android.calculator_161.apk  b11ac882806116f6c0628fab67bf5e47af162dde293e825b5fd0e307d281fc00  fdroid
+org.videolan.vlc_13070205.apk            e8ff40c4a1ebc377ec32e22aec69b617c5b25677c1b4735c06b96322257f1aa8  fdroid

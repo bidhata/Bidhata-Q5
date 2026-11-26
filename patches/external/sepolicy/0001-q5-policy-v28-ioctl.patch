@@ -1,0 +1,13 @@
+diff --git a/ioctl_macros b/ioctl_macros
+index e0ecbf0..a9115cb 100644
+--- a/ioctl_macros
++++ b/ioctl_macros
+@@ -23,3 +23,8 @@ define(`FIOCLEX', `0x00005451')
+ 
+ # commonly used ioctls on unix sockets
+ define(`unpriv_unix_sock_ioctls', `{ TIOCOUTQ FIOCLEX TCGETS TIOCGWINSZ TIOCSWINSZ FIONREAD }')
++
++# Q5: the vendor kernel only loads policy version 28, which has no per-command ioctl rules.
++# Fall back to the plain ioctl permission (the device runs permissive anyway).
++define(`unpriv_sock_ioctls', `ioctl')
++define(`unpriv_unix_sock_ioctls', `ioctl')

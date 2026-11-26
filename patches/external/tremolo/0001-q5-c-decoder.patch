@@ -1,0 +1,14 @@
+diff --git a/Android.mk b/Android.mk
+index 9a7390a..6a5a2b8 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -16,7 +16,8 @@ LOCAL_SRC_FILES = \
+ 	Tremolo/treminfo.c \
+ 	Tremolo/vorbisfile.c
+ 
+-ifeq ($(TARGET_ARCH),arm)
++# Q5: the ARM assembly path corrupts the heap on this device under cm-13; use the C decoder.
++ifeq ($(TARGET_ARCH)-$(TARGET_DEVICE),arm-NOT_q5)
+ LOCAL_SRC_FILES += \
+ 	Tremolo/bitwiseARM.s \
+ 	Tremolo/dpen.s \

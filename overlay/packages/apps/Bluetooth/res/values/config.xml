@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bidhata-Q5 is a music player: keep audio (A2DP/AVRCP), headset, BLE and file transfer,
+     drop the phone/PC profiles that only run in the background. -->
+<resources>
+    <bool name="profile_supported_hdp">false</bool>
+    <bool name="profile_supported_hid">false</bool>
+    <bool name="profile_supported_hidd">false</bool>
+    <bool name="profile_supported_pan">false</bool>
+    <bool name="profile_supported_pbap">false</bool>
+    <bool name="profile_supported_map">false</bool>
+</resources>

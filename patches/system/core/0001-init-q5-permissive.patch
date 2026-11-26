@@ -1,0 +1,76 @@
+diff --git a/init/Android.mk b/init/Android.mk
+index 85dfbfc..3aea4e7 100644
+--- a/init/Android.mk
++++ b/init/Android.mk
+@@ -12,6 +12,10 @@ endif
+ 
+ init_options += -DLOG_UEVENTS=0
+ 
++ifeq ($(BIDHATA_BRINGUP_PERMISSIVE),true)
++init_options += -DBIDHATA_BRINGUP_PERMISSIVE=1
++endif
++
+ init_cflags += \
+     $(init_options) \
+     -Wall -Wextra \
+diff --git a/init/init.cpp b/init/init.cpp
+index 8ea42ca..969b185 100644
+--- a/init/init.cpp
++++ b/init/init.cpp
+@@ -805,7 +805,33 @@ static void import_kernel_nv(char *name, bool for_emulator)
+     }
+ }
+ 
++// The Q5's stock MediaTek lk does not pass androidboot.hardware, and since M init no longer
++// reads /proc/cpuinfo itself, ro.hardware would end up "unknown" (no init.<hw>.rc, no fstab).
++// Fall back to the "Hardware" line of /proc/cpuinfo, lower-cased, like older init did.
++static void hardware_from_cpuinfo() {
++    char value[PROP_VALUE_MAX];
++    if (property_get("ro.boot.hardware", value) > 0) return;
++    std::string cpuinfo;
++    if (!android::base::ReadFileToString("/proc/cpuinfo", &cpuinfo)) return;
++    size_t pos = cpuinfo.find("\nHardware");
++    if (pos == std::string::npos) return;
++    pos = cpuinfo.find(':', pos);
++    if (pos == std::string::npos) return;
++    pos++;
++    while (pos < cpuinfo.size() && (cpuinfo[pos] == ' ' || cpuinfo[pos] == '\t')) pos++;
++    std::string hw;
++    while (pos < cpuinfo.size() && cpuinfo[pos] != '\n' && !isspace(cpuinfo[pos])) {
++        hw += tolower(cpuinfo[pos]);
++        pos++;
++    }
++    if (!hw.empty()) {
++        NOTICE("ro.boot.hardware not set by the bootloader, using '%s' from /proc/cpuinfo\n", hw.c_str());
++        property_set("ro.boot.hardware", hw.c_str());
++    }
++}
++
+ static void export_kernel_boot_props() {
++    hardware_from_cpuinfo();
+     struct {
+         const char *src_prop;
+         const char *dst_prop;
+@@ -929,6 +955,10 @@ static bool selinux_is_disabled(void)
+ 
+ static bool selinux_is_enforcing(void)
+ {
++#ifdef BIDHATA_BRINGUP_PERMISSIVE
++    // Q5: the stock MediaTek lk may not pass androidboot.selinux through, so never enforce here.
++    return false;
++#endif
+     if (ALLOW_DISABLE_SELINUX) {
+         return selinux_status_from_cmdline() == SELINUX_ENFORCING;
+     }
+@@ -985,6 +1015,11 @@ static void selinux_initialize(bool in_kernel_domain) {
+         INFO("Loading SELinux policy...\n");
+         if (selinux_android_load_policy() < 0) {
+             ERROR("failed to load policy: %s\n", strerror(errno));
++#ifdef BIDHATA_BRINGUP_PERMISSIVE
++            // Q5 runs an old vendor kernel; if it rejects the policy, keep booting without one
++            // instead of looping into recovery.
++            return;
++#endif
+             security_failure();
+         }
+ 

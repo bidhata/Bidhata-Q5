@@ -1,0 +1,18 @@
+diff --git a/jni/fmr/fmr_core.cpp b/jni/fmr/fmr_core.cpp
+index 10c2511..3c49d76 100644
+--- a/jni/fmr/fmr_core.cpp
++++ b/jni/fmr/fmr_core.cpp
+@@ -158,6 +158,13 @@ int FMR_open_dev(int idx)
+ 
+     //Check if customer's cfg matchs driver.
+     ret = FMR_get_chip_id(idx, &real_chip);
++    if (ret) {
++        /* The j5052 (MT6582 + MT6627) driver only answers GETCHIPID once the chip is
++         * powered, so trust the chip named in libfmcust instead of giving up. */
++        LOGW("%s, chip id not readable yet, using configured 0x%x\n", __func__, FMR_chip(idx));
++        real_chip = FMR_chip(idx);
++        ret = 0;
++    }
+     if (FMR_chip(idx) != real_chip) {
+         LOGE("%s, Chip config error. 0x%x\n", __func__, real_chip);
+         ret = FMR_cbk_tbl(idx).close_dev(FMR_fd(idx));

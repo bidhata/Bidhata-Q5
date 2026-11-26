@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.bidhata.launcher"
+    android:versionCode="1"
+    android:versionName="0.1">
+
+    <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="23" />
+
+    <!-- needed to see what HiBy (or any player) is playing and to send play/pause/skip -->
+    <uses-permission android:name="android.permission.MEDIA_CONTENT_CONTROL" />
+
+    <!-- Wi-Fi Share: serve internal storage to a browser on the same network -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- turn Bluetooth off while wired headphones are in, back on after -->
+    <!-- see which app is in front, to keep the screen on for books / video / recording -->
+    <uses-permission android:name="android.permission.REAL_GET_TASKS" />
+    <!-- scheduled power off -->
+    <uses-permission android:name="android.permission.SHUTDOWN" />
+    <uses-permission android:name="android.permission.REBOOT" />
+    <uses-permission android:name="android.permission.RECOVERY" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+    <application
+        android:name=".LockWatcher"
+        android:persistent="true"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.Bidhata"
+        android:supportsRtl="false">
+
+        <activity
+            android:name=".HomeActivity"
+            android:theme="@style/Theme.Bidhata.Home"
+            android:launchMode="singleTask"
+            android:clearTaskOnLaunch="true"
+            android:stateNotNeeded="true"
+            android:screenOrientation="portrait"
+            android:resumeWhilePausing="true"
+            android:windowSoftInputMode="adjustNothing">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER_APP" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".AppsActivity"
+            android:screenOrientation="portrait"
+            android:label="@string/all_apps" />
+        <activity
+            android:name=".PowerActivity"
+            android:screenOrientation="portrait"
+            android:label="@string/power_title" />
+        <receiver android:name=".PowerSchedule" android:exported="false" />
+        <activity
+            android:name=".SoundActivity"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize|stateHidden"
+            android:label="@string/sound" />
+        <activity
+            android:name=".LockActivity"
+            android:theme="@style/Theme.Bidhata.Lock"
+            android:launchMode="singleInstance"
+            android:taskAffinity="org.bidhata.lock"
+            android:excludeFromRecents="true"
+            android:screenOrientation="portrait"
+            android:showOnLockScreen="true" />
+        <service android:name=".ShareService" android:exported="false" />
+    </application>
+</manifest>

@@ -1,0 +1,1146 @@
+diff --git a/bta/av/bta_av_aact.c b/bta/av/bta_av_aact.c
+index 6c87309..8531899 100644
+--- a/bta/av/bta_av_aact.c
++++ b/bta/av/bta_av_aact.c
+@@ -2337,7 +2337,8 @@ void bta_av_data_path (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
+     UINT32  data_len;
+     UINT32  timestamp;
+     BOOLEAN new_buf = FALSE;
+-    UINT8   m_pt = 0x60 | p_scb->codec_type;
++    /* Bidhata: vendor codecs (0xFF) use RTP payload type 96 */
++    UINT8   m_pt = (p_scb->codec_type == 0xFF) ? 0x60 : (0x60 | p_scb->codec_type);
+     tAVDT_DATA_OPT_MASK     opt;
+     UNUSED(p_data);
+ 
+diff --git a/bta/av/bta_av_main.c b/bta/av/bta_av_main.c
+index f427446..e2e754c 100644
+--- a/bta/av/bta_av_main.c
++++ b/bta/av/bta_av_main.c
+@@ -701,6 +701,18 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
+             }
+             /* keep the configuration in the stream control block */
+             memcpy(&p_scb->cfg, &cs.cfg, sizeof(tAVDT_CFG));
++            /* Bidhata: a source registers SBC (index 0) first, then AAC (2) and LDAC (3) if the
++             * call-out enables them. SEID order = creation order = DISCOVER order. */
++            {
++            static const UINT8 src_idx[] = {0, 2, 3};
++            UINT8 n_idx = (cs.tsep == AVDT_TSEP_SRC) ? sizeof(src_idx) : 1;
++            UINT8 k;
++            for (k = 0; k < n_idx; k++)
++            {
++            if (cs.tsep == AVDT_TSEP_SRC)
++                index = src_idx[k];
++            if (index >= BTA_AV_MAX_SEPS)
++                continue;
+             if ((*bta_av_a2d_cos.init)(&codec_type, cs.cfg.codec_info,
+                 &cs.cfg.num_protect, cs.cfg.protect_info, index) == TRUE)
+             {
+@@ -712,8 +724,13 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
+                         p_scb->seps[index].p_app_data_cback = p_data->api_reg.p_app_data_cback;
+                     else
+                         p_scb->seps[index].p_app_data_cback = NULL; /* In case of A2DP SOURCE we don't need a callback to handle media packets */
+-
++                    APPL_TRACE_IMP("bta_av_reg: Bidhata CreateStream ok idx %d codec 0x%02x handle %d",
++                                   index, codec_type, p_scb->seps[index].av_handle);
+                 }
++                else
++                    APPL_TRACE_ERROR("bta_av_reg: Bidhata CreateStream FAILED idx %d", index);
++            }
++            }
+             }
+ 
+             if(!bta_av_cb.reg_audio)
+diff --git a/btif/co/bta_av_co.c b/btif/co/bta_av_co.c
+index 0e9b66a..7f30184 100644
+--- a/btif/co/bta_av_co.c
++++ b/btif/co/bta_av_co.c
+@@ -25,6 +25,7 @@
+  ******************************************************************************/
+ 
+ #include "string.h"
++#include <cutils/properties.h>
+ #include "a2d_api.h"
+ #include "a2d_sbc.h"
+ #include "bta_sys.h"
+@@ -186,6 +187,115 @@ static BOOLEAN bta_av_co_audio_media_supports_config(UINT8 codec_type, const UIN
+ static BOOLEAN bta_av_co_audio_sink_supports_config(UINT8 codec_type, const UINT8 *p_codec_cfg);
+ static BOOLEAN bta_av_co_audio_peer_src_supports_codec(tBTA_AV_CO_PEER *p_peer, UINT8 *p_src_index);
+ 
++/* ---- Bidhata: LDAC (vendor 0x0000012D, codec 0x00AA) ---- */
++#define BIDHATA_CT_VENDOR 0xFF
++static BOOLEAN bidhata_peer_ldac_open[BTA_AV_NUM_STRS + 2];   /* set in audio_open from the opened config */
++static UINT8 bidhata_peer_codec[BTA_AV_NUM_STRS + 2];          /* opened codec type (0 SBC, 2 AAC, 0xFF vendor) */
++static UINT8 bidhata_peer_cfg[BTA_AV_NUM_STRS + 2][AVDT_CODEC_SIZE];
++static BOOLEAN bidhata_is_ldac(const UINT8 *p_info)
++{
++    /* p_info[0]=LOSC [1]=media type [2]=codec type [3..6]=vendor id LE [7..8]=codec id LE */
++    return (p_info[0] >= 10) && (p_info[2] == BIDHATA_CT_VENDOR) &&
++           (p_info[3] == 0x2D) && (p_info[4] == 0x01) && (p_info[5] == 0) && (p_info[6] == 0) &&
++           (p_info[7] == 0xAA) && (p_info[8] == 0x00);
++}
++/* persist.bt.a2dp.codec: auto (default) | ldac | aac | sbc */
++static BOOLEAN bidhata_ldac_allowed(void)
++{
++    char v[PROPERTY_VALUE_MAX];
++    char seps[PROPERTY_VALUE_MAX];
++    property_get("persist.bt.a2dp.seps", seps, "sbc");
++    if (strcmp(seps, "all") != 0)
++        return FALSE;   /* LDAC SEP not registered */
++    property_get("persist.bt.a2dp.codec", v, "auto");
++    return (strcmp(v, "auto") == 0) || (strcmp(v, "ldac") == 0);
++}
++/* Returns TRUE and the sink index if the peer has an LDAC sink usable at 44.1 kHz stereo. */
++static BOOLEAN bidhata_peer_ldac_sink(tBTA_AV_CO_PEER *p_peer, UINT8 *p_index)
++{
++    UINT8 i;
++    if (!bidhata_ldac_allowed())
++        return FALSE;
++    for (i = 0; i < p_peer->num_sup_snks; i++)
++    {
++        const UINT8 *c = p_peer->snks[i].codec_caps;
++        if (p_peer->snks[i].codec_type == BIDHATA_CT_VENDOR && bidhata_is_ldac(c) &&
++            (c[9] & 0x20) && (c[10] & 0x01))
++        {
++            *p_index = i;
++            return TRUE;
++        }
++    }
++    return FALSE;
++}
++static BOOLEAN bidhata_aac_allowed(void)
++{
++    char v[PROPERTY_VALUE_MAX];
++    char seps[PROPERTY_VALUE_MAX];
++    property_get("persist.bt.a2dp.seps", seps, "sbc");
++    if (strcmp(seps, "all") != 0)
++        return FALSE;
++    property_get("persist.bt.a2dp.codec", v, "auto");
++    return (strcmp(v, "auto") == 0) || (strcmp(v, "aac") == 0);
++}
++/* AAC element: [3] object type, [4] freq 8k..44.1k, [5] hi: 48k..96k lo: channels (0x08 mono, 0x04 stereo),
++ * [6] bit7 VBR + bitrate bits 22..16, [7..8] bitrate */
++static BOOLEAN bidhata_aac_caps_ok(const UINT8 *c)
++{
++    return (c[0] >= 8) && (c[2] == BTA_AV_CODEC_M24) && (c[3] & 0xC0) && (c[4] & 0x01) && (c[5] & 0x04);
++}
++static UINT32 bidhata_aac_bitrate(const UINT8 *c)
++{
++    return ((UINT32)(c[6] & 0x7F) << 16) | ((UINT32)c[7] << 8) | c[8];
++}
++static BOOLEAN bidhata_peer_aac_sink(tBTA_AV_CO_PEER *p_peer, UINT8 *p_index)
++{
++    UINT8 i;
++    if (!bidhata_aac_allowed())
++        return FALSE;
++    for (i = 0; i < p_peer->num_sup_snks; i++)
++    {
++        if (p_peer->snks[i].codec_type == BTA_AV_CODEC_M24 && bidhata_aac_caps_ok(p_peer->snks[i].codec_caps))
++        {
++            *p_index = i;
++            return TRUE;
++        }
++    }
++    return FALSE;
++}
++static void bidhata_aac_build_config(const UINT8 *caps, UINT8 *p_cfg)
++{
++    UINT32 br = bidhata_aac_bitrate(caps);
++    if (br == 0 || br > 320000)
++        br = (br == 0) ? 256000 : 320000;
++    memset(p_cfg, 0, AVDT_CODEC_SIZE);
++    p_cfg[0] = 8;
++    p_cfg[1] = AVDT_MEDIA_AUDIO << 4;
++    p_cfg[2] = BTA_AV_CODEC_M24;
++    p_cfg[3] = (caps[3] & 0x80) ? 0x80 : 0x40;     /* MPEG-2 AAC LC preferred, else MPEG-4 AAC LC */
++    p_cfg[4] = 0x01;                               /* 44.1 kHz */
++    p_cfg[5] = 0x04;                               /* stereo */
++    p_cfg[6] = (UINT8)((br >> 16) & 0x7F);         /* CBR */
++    p_cfg[7] = (UINT8)(br >> 8);
++    p_cfg[8] = (UINT8)br;
++}
++/* SBC XQ: Dual Channel + high bitpool when the sink can take it. persist.bt.sbc.xq = 1 (default) | 0 */
++#define BIDHATA_SBC_XQ_MAX_BITPOOL 47   /* ~552 kbps at 44.1 kHz dual channel; higher is unsafe on this radio */
++#define BIDHATA_SBC_XQ_MIN_SINK_BP 38   /* below this, dual channel would sound worse than joint stereo */
++static BOOLEAN bidhata_sbc_xq_enabled(void)
++{
++    char v[PROPERTY_VALUE_MAX];
++    property_get("persist.bt.sbc.xq", v, "1");
++    return strcmp(v, "0") != 0;
++}
++static void bidhata_ldac_build_config(UINT8 *p_cfg)
++{
++    static const UINT8 cfg[] = {10, AVDT_MEDIA_AUDIO << 4, BIDHATA_CT_VENDOR,
++                                0x2D, 0x01, 0x00, 0x00, 0xAA, 0x00, 0x20 /* 44.1 */, 0x01 /* stereo */};
++    memset(p_cfg, 0, AVDT_CODEC_SIZE);
++    memcpy(p_cfg, cfg, sizeof(cfg));
++}
++
+ 
+ 
+ /*******************************************************************************
+@@ -323,6 +433,34 @@ BOOLEAN bta_av_co_audio_init(UINT8 *p_codec_type, UINT8 *p_codec_info, UINT8 *p_
+ 
+         /* Codec is valid */
+         return TRUE;
++    case BTIF_SV_AV_AA_AAC_INDEX:
++    case BTIF_SV_AV_AA_LDAC_INDEX:
++    {
++        /* Bidhata: extra source SEPs, off unless persist.bt.a2dp.seps=all
++         * (until the encoders exist, a sink-initiated SET_CONFIGURATION on them is rejected). */
++        char seps[PROPERTY_VALUE_MAX];
++        property_get("persist.bt.a2dp.seps", seps, "sbc");
++        if (strcmp(seps, "all") != 0)
++            return FALSE;
++        if (index == BTIF_SV_AV_AA_AAC_INDEX)
++        {
++            /* MPEG-2 AAC LC, 44.1 kHz, stereo, CBR, 320 kbps max */
++            static const UINT8 aac_info[] = {8, AVDT_MEDIA_AUDIO << 4, BTA_AV_CODEC_M24,
++                                             0x80, 0x01, 0x04, 0x04, 0xE2, 0x00};
++            *p_codec_type = BTA_AV_CODEC_M24;
++            memcpy(p_codec_info, aac_info, sizeof(aac_info));
++        }
++        else
++        {
++            /* LDAC: vendor 0x0000012D, codec 0x00AA, 44.1 kHz, stereo */
++            static const UINT8 ldac_info[] = {10, AVDT_MEDIA_AUDIO << 4, 0xFF /* vendor (non-A2DP) */,
++                                              0x2D, 0x01, 0x00, 0x00, 0xAA, 0x00, 0x20, 0x01};
++            *p_codec_type = 0xFF; /* vendor */
++            memcpy(p_codec_info, ldac_info, sizeof(ldac_info));
++        }
++        APPL_TRACE_IMP("bta_av_co_audio_init: Bidhata extra SEP index %d codec 0x%02x", index, *p_codec_type);
++        return TRUE;
++    }
+ #if (BTA_AV_SINK_INCLUDED == TRUE)
+     case BTIF_SV_AV_AA_SBC_SINK_INDEX:
+         *p_codec_type = BTA_AV_CODEC_SBC;
+@@ -636,6 +774,14 @@ UINT8 bta_av_co_audio_getconfig(tBTA_AV_HNDL hndl, tBTA_AV_CODEC codec_type,
+         supported = TRUE;
+         break;
+ 
++    case BIDHATA_CT_VENDOR:
++        supported = bidhata_is_ldac(p_codec_info);   /* Bidhata: keep LDAC sinks */
++        break;
++
++    case BTA_AV_CODEC_M24:
++        supported = TRUE;                            /* Bidhata: keep AAC sinks */
++        break;
++
+     default:
+         break;
+     }
+@@ -673,8 +819,10 @@ UINT8 bta_av_co_audio_getconfig(tBTA_AV_HNDL hndl, tBTA_AV_CODEC codec_type,
+         /* Protect access to bta_av_co_cb.codec_cfg */
+         GKI_disable();
+ 
+-        /* Find a sink that matches the codec config */
+-        if (bta_av_co_audio_peer_supports_codec(p_peer, &index))
++        /* Find a sink that matches the codec config (Bidhata: LDAC first if the peer has it) */
++        BOOLEAN use_ldac = bidhata_peer_ldac_sink(p_peer, &index);
++        BOOLEAN use_aac = !use_ldac && bidhata_peer_aac_sink(p_peer, &index);
++        if (use_ldac || use_aac || bta_av_co_audio_peer_supports_codec(p_peer, &index))
+         {
+             /* stop fetching caps once we retrieved a supported codec */
+             if (p_peer->acp)
+@@ -686,7 +834,18 @@ UINT8 bta_av_co_audio_getconfig(tBTA_AV_HNDL hndl, tBTA_AV_CODEC codec_type,
+             p_sink = &p_peer->snks[index];
+ 
+             /* Build the codec configuration for this sink */
+-            if (bta_av_co_audio_codec_build_config(p_sink->codec_caps, codec_cfg))
++            if (use_ldac)
++            {
++                bidhata_ldac_build_config(codec_cfg);
++                APPL_TRACE_IMP("bta_av_co_audio_getconfig: Bidhata selects LDAC (sink seid %d)", p_sink->seid);
++            }
++            else if (use_aac)
++            {
++                bidhata_aac_build_config(p_sink->codec_caps, codec_cfg);
++                APPL_TRACE_IMP("bta_av_co_audio_getconfig: Bidhata selects AAC (sink seid %d) cfg %02x %02x %02x %02x %02x %02x",
++                               p_sink->seid, codec_cfg[3], codec_cfg[4], codec_cfg[5], codec_cfg[6], codec_cfg[7], codec_cfg[8]);
++            }
++            if (use_ldac || use_aac || bta_av_co_audio_codec_build_config(p_sink->codec_caps, codec_cfg))
+             {
+                 APPL_TRACE_IMP("bta_av_co_audio_getconfig reconfig p_codec_info[%x:%x:%x:%x:%x:%x]",
+                         codec_cfg[1], codec_cfg[2], codec_cfg[3],
+@@ -829,6 +988,13 @@ void bta_av_co_audio_setconfig(tBTA_AV_HNDL hndl, tBTA_AV_CODEC codec_type,
+             GKI_disable();
+ 
+             /* Check if the configuration matches the current codec config */
++            if ((AVDT_TSEP_SRC == t_local_sep) &&
++                (codec_type == BTA_AV_CODEC_M24 || codec_type == BIDHATA_CT_VENDOR))
++            {
++                /* Bidhata: sink chose AAC/LDAC on our SEP and we accepted it: keep it */
++                recfg_needed = FALSE;
++            }
++            else
+             switch (bta_av_co_cb.codec_cfg.id)
+             {
+             case BTIF_AV_CODEC_SBC:
+@@ -925,6 +1091,21 @@ void bta_av_co_audio_open(tBTA_AV_HNDL hndl, tBTA_AV_CODEC codec_type, UINT8 *p_
+     {
+         p_peer->opened = TRUE;
+         p_peer->mtu = mtu;
++        {
++            UINT8 idx = BTA_AV_CO_AUDIO_HNDL_TO_INDX(hndl);
++            BOOLEAN ldac = (codec_type == BIDHATA_CT_VENDOR) && p_codec_info && bidhata_is_ldac(p_codec_info);
++            if (idx < sizeof(bidhata_peer_ldac_open))
++            {
++                bidhata_peer_ldac_open[idx] = ldac;
++                bidhata_peer_codec[idx] = codec_type;
++                if (p_codec_info)
++                    memcpy(bidhata_peer_cfg[idx], p_codec_info, AVDT_CODEC_SIZE);
++            }
++            APPL_TRACE_IMP("bta_av_co_audio_open: Bidhata hndl 0x%x idx %d codec_type 0x%02x ldac %d mtu %d info[%02x %02x %02x]",
++                           hndl, idx, codec_type, ldac, mtu,
++                           p_codec_info ? p_codec_info[0] : 0, p_codec_info ? p_codec_info[1] : 0,
++                           p_codec_info ? p_codec_info[2] : 0);
++        }
+     }
+ }
+ 
+@@ -956,6 +1137,14 @@ void bta_av_co_audio_close(tBTA_AV_HNDL hndl, tBTA_AV_CODEC codec_type, UINT16 m
+     {
+         /* Mark the peer closed and clean the peer info */
+         memset(p_peer, 0, sizeof(*p_peer));
++        {
++            UINT8 idx = BTA_AV_CO_AUDIO_HNDL_TO_INDX(hndl);
++            if (idx < sizeof(bidhata_peer_ldac_open))
++            {
++                bidhata_peer_ldac_open[idx] = FALSE;
++                bidhata_peer_codec[idx] = 0;
++            }
++        }
+     }
+     else
+     {
+@@ -1047,6 +1236,17 @@ void * bta_av_co_audio_src_data_path(tBTA_AV_CODEC codec_type, UINT32 *p_len,
+             bta_av_sbc_bld_hdr(p_buf, p_buf->layer_specific);
+             break;
+ 
++        case BTA_AV_CODEC_M24:
++            /* AAC: RTP + LATM AudioMuxElement, no media payload header */
++            *p_timestamp = *((UINT32 *) (p_buf + 1));
++            break;
++
++        case BIDHATA_CT_VENDOR:
++            /* LDAC: same 1-byte media payload header (frame count) as SBC */
++            *p_timestamp = *((UINT32 *) (p_buf + 1));
++            bta_av_sbc_bld_hdr(p_buf, p_buf->layer_specific);
++            break;
++
+ 
+         default:
+             APPL_TRACE_ERROR("bta_av_co_audio_src_data_path Unsupported codec type (%d)", codec_type);
+@@ -1133,6 +1333,20 @@ static BOOLEAN bta_av_co_audio_codec_build_config(const UINT8 *p_codec_caps, UIN
+         p_codec_cfg[BTA_AV_CO_SBC_MIN_BITPOOL_OFF] = p_codec_caps[BTA_AV_CO_SBC_MIN_BITPOOL_OFF];
+         p_codec_cfg[BTA_AV_CO_SBC_MAX_BITPOOL_OFF] = p_codec_caps[BTA_AV_CO_SBC_MAX_BITPOOL_OFF];
+ 
++        /* Bidhata: SBC XQ - dual channel gives each channel its own bitpool, roughly
++         * doubling the bitrate at the same bitpool limit */
++        if (bidhata_sbc_xq_enabled() &&
++            (p_codec_caps[BTA_AV_CO_SBC_FREQ_CHAN_OFF] & A2D_SBC_IE_CH_MD_DUAL) &&
++            (p_codec_caps[BTA_AV_CO_SBC_MAX_BITPOOL_OFF] >= BIDHATA_SBC_XQ_MIN_SINK_BP))
++        {
++            p_codec_cfg[BTA_AV_CO_SBC_FREQ_CHAN_OFF] =
++                (p_codec_cfg[BTA_AV_CO_SBC_FREQ_CHAN_OFF] & ~A2D_SBC_IE_CH_MD_MSK) | A2D_SBC_IE_CH_MD_DUAL;
++            if (p_codec_cfg[BTA_AV_CO_SBC_MAX_BITPOOL_OFF] > BIDHATA_SBC_XQ_MAX_BITPOOL)
++                p_codec_cfg[BTA_AV_CO_SBC_MAX_BITPOOL_OFF] = BIDHATA_SBC_XQ_MAX_BITPOOL;
++            APPL_TRACE_IMP("Bidhata: SBC XQ (dual channel, max bitpool %d)",
++                           p_codec_cfg[BTA_AV_CO_SBC_MAX_BITPOOL_OFF]);
++        }
++
+         APPL_TRACE_EVENT("bta_av_co_audio_codec_build_config : bitpool min %d, max %d",
+                     p_codec_cfg[BTA_AV_CO_SBC_MIN_BITPOOL_OFF],
+                     p_codec_caps[BTA_AV_CO_SBC_MAX_BITPOOL_OFF]);
+@@ -1451,6 +1665,21 @@ static BOOLEAN bta_av_co_audio_media_supports_config(UINT8 codec_type, const UIN
+         }
+         break;
+ 
++    case BTA_AV_CODEC_M24:   /* Bidhata: sink-initiated AAC, 44.1 kHz stereo LC only */
++        if (!bidhata_aac_allowed() || !bidhata_aac_caps_ok(p_codec_cfg) ||
++            (p_codec_cfg[4] != 0x01) || ((p_codec_cfg[5] & 0x0F) != 0x04))
++            return FALSE;
++        APPL_TRACE_IMP("Bidhata: accepting sink AAC config %02x %02x %02x %02x %02x %02x",
++                       p_codec_cfg[3], p_codec_cfg[4], p_codec_cfg[5], p_codec_cfg[6], p_codec_cfg[7], p_codec_cfg[8]);
++        break;
++
++    case BIDHATA_CT_VENDOR:  /* Bidhata: sink-initiated LDAC, 44.1 kHz stereo only */
++        if (!bidhata_ldac_allowed() || !bidhata_is_ldac(p_codec_cfg) ||
++            (p_codec_cfg[9] != 0x20) || (p_codec_cfg[10] != 0x01))
++            return FALSE;
++        APPL_TRACE_IMP("Bidhata: accepting sink LDAC config");
++        break;
++
+ 
+     default:
+         APPL_TRACE_ERROR("bta_av_co_audio_media_supports_config unsupported codec type %d", codec_type);
+@@ -1492,6 +1721,15 @@ BOOLEAN bta_av_co_audio_codec_supported(tBTIF_STATUS *p_status)
+     for (index = 0; index < BTA_AV_CO_NUM_ELEMENTS(bta_av_co_cb.peers); index++)
+     {
+         p_peer = &bta_av_co_cb.peers[index];
++        if (p_peer->opened && index < sizeof(bidhata_peer_ldac_open) &&
++            (bidhata_peer_ldac_open[index] || bidhata_peer_codec[index] == BTA_AV_CODEC_M24))
++        {
++            /* Bidhata: this stream runs LDAC or AAC - leave it alone, an SBC reconfig here
++             * would silently undo the codec we negotiated */
++            APPL_TRACE_DEBUG("bta_av_co_audio_codec_supported: peer %d keeps codec 0x%02x", index,
++                             bidhata_peer_codec[index]);
++            continue;
++        }
+         if (p_peer->opened)
+         {
+             if (bta_av_co_audio_peer_supports_codec(p_peer, &snk_index))
+@@ -1709,6 +1947,15 @@ BOOLEAN bta_av_co_audio_get_sbc_config(tA2D_SBC_CIE *p_sbc_config, UINT16 *p_min
+                 if (p_peer->opened)
+                 {
+                     APPL_TRACE_EVENT("bta_av_co_audio_get_sbc_config on index= %d", index);
++                    /* Bidhata: the encoder must use the channel mode that was actually opened
++                     * (SBC XQ negotiates dual channel, the global default is joint stereo) */
++                    if (index < sizeof(bidhata_peer_ldac_open) && bidhata_peer_codec[index] == A2D_MEDIA_CT_SBC &&
++                        (bidhata_peer_cfg[index][BTA_AV_CO_SBC_FREQ_CHAN_OFF] & A2D_SBC_IE_CH_MD_DUAL))
++                    {
++                        p_sbc_config->ch_mode = A2D_SBC_IE_CH_MD_DUAL;
++                        if (p_sbc_config->max_bitpool > BIDHATA_SBC_XQ_MAX_BITPOOL)
++                            p_sbc_config->max_bitpool = BIDHATA_SBC_XQ_MAX_BITPOOL;
++                    }
+                     if (p_peer->mtu < *p_minmtu)
+                     {
+                         *p_minmtu = p_peer->mtu;
+@@ -1865,3 +2112,59 @@ BOOLEAN bta_av_co_get_remote_bitpool_pref(UINT8 *min, UINT8 *max)
+ 
+     return TRUE;
+ }
++
++/*******************************************************************************
++ ** Bidhata: TRUE if an opened peer streams LDAC; *p_mtu = its media MTU.
++ *******************************************************************************/
++BOOLEAN bta_av_co_audio_get_ldac_config(UINT16 *p_mtu)
++{
++    UINT8 index;
++    BOOLEAN result = FALSE;
++    GKI_disable();
++    for (index = 0; index < BTA_AV_CO_NUM_ELEMENTS(bta_av_co_cb.peers); index++)
++    {
++        tBTA_AV_CO_PEER *p_peer = &bta_av_co_cb.peers[index];
++        if (p_peer->opened)
++            APPL_TRACE_DEBUG("Bidhata get_ldac_config: peer %d opened mtu %d ldac_open %d p_snk %p snk_type 0x%02x cfg[%02x %02x %02x]",
++                           index, p_peer->mtu, index < sizeof(bidhata_peer_ldac_open) ? bidhata_peer_ldac_open[index] : -1,
++                           p_peer->p_snk, p_peer->p_snk ? p_peer->p_snk->codec_type : 0,
++                           p_peer->codec_cfg[0], p_peer->codec_cfg[1], p_peer->codec_cfg[2]);
++        if (p_peer->opened && index < sizeof(bidhata_peer_ldac_open) && bidhata_peer_ldac_open[index])
++        {
++            *p_mtu = p_peer->mtu;
++            result = TRUE;
++            break;
++        }
++    }
++    GKI_enable();
++    return result;
++}
++
++/*******************************************************************************
++ ** Bidhata: TRUE if an opened peer streams AAC; *p_mtu = media MTU, *p_bitrate from the config,
++ ** *p_mpeg2 = object type MPEG-2 AAC LC.
++ *******************************************************************************/
++BOOLEAN bta_av_co_audio_get_aac_config(UINT16 *p_mtu, UINT32 *p_bitrate, BOOLEAN *p_mpeg2)
++{
++    UINT8 index;
++    BOOLEAN result = FALSE;
++    GKI_disable();
++    for (index = 0; index < BTA_AV_CO_NUM_ELEMENTS(bta_av_co_cb.peers); index++)
++    {
++        tBTA_AV_CO_PEER *p_peer = &bta_av_co_cb.peers[index];
++        if (p_peer->opened && index < sizeof(bidhata_peer_ldac_open) &&
++            bidhata_peer_codec[index] == BTA_AV_CODEC_M24)
++        {
++            const UINT8 *c = bidhata_peer_cfg[index];
++            *p_mtu = p_peer->mtu;
++            *p_bitrate = bidhata_aac_bitrate(c);
++            *p_mpeg2 = (c[3] & 0x80) ? TRUE : FALSE;
++            APPL_TRACE_DEBUG("Bidhata get_aac_config: peer %d mtu %d cfg %02x %02x %02x %02x %02x %02x",
++                           index, p_peer->mtu, c[3], c[4], c[5], c[6], c[7], c[8]);
++            result = TRUE;
++            break;
++        }
++    }
++    GKI_enable();
++    return result;
++}
+diff --git a/btif/include/btif_av_co.h b/btif/include/btif_av_co.h
+index a6a5bfa..51188f5 100644
+--- a/btif/include/btif_av_co.h
++++ b/btif/include/btif_av_co.h
+@@ -29,6 +29,8 @@ enum
+ {
+     BTIF_SV_AV_AA_SBC_INDEX = 0,
+     BTIF_SV_AV_AA_SBC_SINK_INDEX,
++    BTIF_SV_AV_AA_AAC_INDEX,        /* Bidhata: AAC source SEP */
++    BTIF_SV_AV_AA_LDAC_INDEX,       /* Bidhata: LDAC source SEP */
+     BTIF_SV_AV_AA_SEP_INDEX  /* Last index */
+ };
+ 
+@@ -171,4 +173,9 @@ BOOLEAN bta_av_co_peer_cp_supported(tBTA_AV_HNDL hndl);
+  *******************************************************************************/
+ BOOLEAN bta_av_co_get_remote_bitpool_pref(UINT8 *min, UINT8 *max);
+ 
++/* Bidhata: TRUE if an opened peer streams LDAC; *p_mtu = its media MTU */
++BOOLEAN bta_av_co_audio_get_ldac_config(UINT16 *p_mtu);
++/* Bidhata: TRUE if an opened peer streams AAC */
++BOOLEAN bta_av_co_audio_get_aac_config(UINT16 *p_mtu, UINT32 *p_bitrate, BOOLEAN *p_mpeg2);
++
+ #endif
+diff --git a/btif/include/btif_media.h b/btif/include/btif_media.h
+index a9323f0..8053cb6 100644
+--- a/btif/include/btif_media.h
++++ b/btif/include/btif_media.h
+@@ -54,6 +54,8 @@
+ /* Transcoding definition for TxTranscoding and RxTranscoding */
+ #define BTIF_MEDIA_TRSCD_OFF             0
+ #define BTIF_MEDIA_TRSCD_PCM_2_SBC       1  /* Tx */
++#define BTIF_MEDIA_TRSCD_PCM_2_LDAC      2  /* Tx, Bidhata */
++#define BTIF_MEDIA_TRSCD_PCM_2_AAC       3  /* Tx, Bidhata */
+ 
+ 
+ /*******************************************************************************
+diff --git a/btif/src/btif_media_task.c b/btif/src/btif_media_task.c
+index 3b4e2ed..bf1615b 100644
+--- a/btif/src/btif_media_task.c
++++ b/btif/src/btif_media_task.c
+@@ -63,6 +63,11 @@
+ 
+ #include "btif_av_co.h"
+ #include "btif_media.h"
++#include <cutils/properties.h>
++#include <stdlib.h>
++#include "ldacBT.h"
++#include "ldacBT_abr.h"
++#include "aacenc_lib.h"
+ 
+ #include "osi/include/alarm.h"
+ #include "osi/include/log.h"
+@@ -321,6 +326,32 @@ typedef struct {
+ 
+ static UINT64 last_frame_us = 0;
+ 
++/* ---- Bidhata: LDAC encoder state (media task only) ---- */
++#define LDAC_PCM_CHUNK  (LDACBT_ENC_LSU * 2 * 2)   /* 128 samples x stereo x 16 bit = 512 B */
++#define LDAC_MAX_TXQ    40                          /* ~300 ms at 660 kbps, older packets dropped */
++static HANDLE_LDAC_BT ldac_h = NULL;
++static UINT16 ldac_mtu = 0;
++static int ldac_eqmid = LDACBT_EQMID_SQ;
++static HANDLE_LDAC_ABR ldac_abr = NULL;    /* non-NULL when persist.bt.ldac.quality=abr (default) */
++static BOOLEAN ldac_use_abr = TRUE;
++static UINT32 ldac_pkts = 0, ldac_underruns = 0, ldac_drops = 0;
++static void bidhata_ldac_check(void);
++static void bidhata_ldac_reinit(void);
++static void bidhata_ldac_send(void);
++
++/* ---- Bidhata: AAC encoder state (media task only) ---- */
++#define AAC_FRAME_SAMPLES 1024
++#define AAC_PCM_FRAME     (AAC_FRAME_SAMPLES * 2 * 2)   /* 4096 B per AAC frame (stereo 16 bit) */
++static HANDLE_AACENCODER aac_h = NULL;
++static UINT16 aac_mtu = 0;
++static UINT32 aac_bitrate = 0;
++static BOOLEAN aac_mpeg2 = TRUE;
++static UINT32 aac_pkts = 0, aac_underruns = 0, aac_drops = 0, aac_oversize = 0;
++static void bidhata_aac_check(void);
++static void bidhata_aac_reinit(void);
++static void bidhata_aac_send(void);
++
++
+ static void btif_a2dp_data_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
+ static void btif_a2dp_ctrl_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event);
+ static void btif_a2dp_encoder_update(void);
+@@ -1892,6 +1923,10 @@ static void btif_media_task_enc_init(BT_HDR *p_msg)
+     btif_media_cb.encoder.s16SamplingFreq = pInitAudio->SamplingFreq;
+ 
+     btif_media_cb.encoder.u16BitRate = btif_media_task_get_sbc_rate();
++    /* Bidhata: SBC XQ - dual channel needs a higher target so the encoder picks a high bitpool
++     * (552 kbps ~ bitpool 47; the sink's max bitpool still caps it) */
++    if (pInitAudio->ChannelMode == SBC_DUAL && btif_av_is_peer_edr())
++        btif_media_cb.encoder.u16BitRate = 552;
+ 
+     /* Default transcoding is PCM to SBC, modified by feeding configuration */
+     btif_media_cb.TxTranscoding = BTIF_MEDIA_TRSCD_PCM_2_SBC;
+@@ -2189,6 +2224,12 @@ static void btif_media_task_audio_feeding_init(BT_HDR *p_msg)
+         case BTIF_AV_CODEC_PCM:
+             btif_media_cb.TxTranscoding = BTIF_MEDIA_TRSCD_PCM_2_SBC;
+             btif_media_task_pcm2sbc_init(p_feeding);
++            bidhata_ldac_check();   /* may switch TxTranscoding to LDAC */
++            if (btif_media_cb.TxTranscoding == BTIF_MEDIA_TRSCD_PCM_2_SBC)
++                bidhata_aac_check();    /* may switch TxTranscoding to AAC */
++            if (btif_media_cb.TxTranscoding == BTIF_MEDIA_TRSCD_PCM_2_SBC)
++                property_set("bluetooth.a2dp.codec",
++                             btif_media_cb.encoder.s16ChannelMode == SBC_DUAL ? "SBC XQ" : "SBC");
+             break;
+ 
+         default :
+@@ -2454,7 +2495,9 @@ static void btif_media_task_feeding_state_reset(void)
+     /* By default, just clear the entire state */
+     memset(&btif_media_cb.media_feeding_state, 0, sizeof(btif_media_cb.media_feeding_state));
+ 
+-    if (btif_media_cb.TxTranscoding == BTIF_MEDIA_TRSCD_PCM_2_SBC)
++    if (btif_media_cb.TxTranscoding == BTIF_MEDIA_TRSCD_PCM_2_SBC ||
++        btif_media_cb.TxTranscoding == BTIF_MEDIA_TRSCD_PCM_2_LDAC ||
++        btif_media_cb.TxTranscoding == BTIF_MEDIA_TRSCD_PCM_2_AAC)
+     {
+         btif_media_cb.media_feeding_state.pcm.bytes_per_tick =
+                 (btif_media_cb.media_feeding.cfg.pcm.sampling_freq *
+@@ -2495,6 +2538,10 @@ static void btif_media_task_aa_start_tx(void)
+ 
+     btif_media_cb.is_tx_timer = TRUE;
+     last_frame_us = 0;
++    if (btif_media_cb.TxTranscoding == BTIF_MEDIA_TRSCD_PCM_2_LDAC)
++        bidhata_ldac_reinit();
++    else if (btif_media_cb.TxTranscoding == BTIF_MEDIA_TRSCD_PCM_2_AAC)
++        bidhata_aac_reinit();
+ 
+     /* Reset the media feeding state */
+     btif_media_task_feeding_state_reset();
+@@ -3064,7 +3111,7 @@ static void btif_media_aa_prep_sbc_2_send(UINT8 nb_frame)
+ 
+ #if (defined(DEBUG_MEDIA_AV_FLOW) && (DEBUG_MEDIA_AV_FLOW == TRUE))
+     APPL_TRACE_DEBUG("btif_media_aa_prep_sbc_2_send nb_frame %d, TxAaQ %d",
+-                       nb_frame, btif_media_cb.TxAaQ.count);
++                       nb_frame, GKI_queue_length(&btif_media_cb.TxAaQ));
+ #endif
+     while (nb_frame)
+     {
+@@ -3224,6 +3271,18 @@ static void btif_media_send_aa_frame(void)
+     #ifdef BT_AUDIO_SYSTRACE_LOG
+     char trace_buf[1024];
+     #endif
++    if (btif_media_cb.TxTranscoding == BTIF_MEDIA_TRSCD_PCM_2_LDAC)
++    {
++        nb_frame_2_send = 0;
++        bidhata_ldac_send();
++    }
++    else if (btif_media_cb.TxTranscoding == BTIF_MEDIA_TRSCD_PCM_2_AAC)
++    {
++        nb_frame_2_send = 0;
++        bidhata_aac_send();
++    }
++    else
++    {
+     /* get the number of frame to send */
+     btif_get_num_aa_frame(&nb_iterations, &nb_frame_2_send);
+ 
+@@ -3234,6 +3293,7 @@ static void btif_media_send_aa_frame(void)
+             btif_media_aa_prep_2_send(nb_frame_2_send);
+         }
+     }
++    }
+     /* send it */
+     LOG_VERBOSE("btif_media_send_aa_frame : send %d frames", nb_frame_2_send);
+     #ifdef BT_AUDIO_SYSTRACE_LOG
+@@ -3664,3 +3724,370 @@ void dump_codec_info(unsigned char *p_codec)
+ 
+ }
+ 
++
++/*******************************************************************************
++ ** Bidhata: LDAC encoding
++ *******************************************************************************/
++static void bidhata_ldac_free(void)
++{
++    if (ldac_abr)
++    {
++        ldac_ABR_free_handle(ldac_abr);
++        ldac_abr = NULL;
++    }
++    if (ldac_h)
++    {
++        ldacBT_free_handle(ldac_h);
++        ldac_h = NULL;
++    }
++}
++
++static void bidhata_ldac_reinit(void)
++{
++    int err;
++    if (ldac_h == NULL)
++        ldac_h = ldacBT_get_handle();
++    else
++        ldacBT_close_handle(ldac_h);
++    if (ldac_h == NULL)
++    {
++        APPL_TRACE_ERROR("Bidhata LDAC: get_handle failed, falling back to SBC");
++        btif_media_cb.TxTranscoding = BTIF_MEDIA_TRSCD_PCM_2_SBC;
++        return;
++    }
++    err = ldacBT_init_handle_encode(ldac_h, ldac_mtu, ldac_eqmid, LDACBT_CHANNEL_MODE_STEREO,
++                                    LDACBT_SMPL_FMT_S16, 44100);
++    if (err)
++    {
++        APPL_TRACE_ERROR("Bidhata LDAC: init_handle_encode(mtu %d eqmid %d) failed err %d api %d",
++                         ldac_mtu, ldac_eqmid, err, ldacBT_get_error_code(ldac_h));
++        bidhata_ldac_free();
++        btif_media_cb.TxTranscoding = BTIF_MEDIA_TRSCD_PCM_2_SBC;
++        return;
++    }
++    if (ldac_use_abr)
++    {
++        if (ldac_abr == NULL)
++            ldac_abr = ldac_ABR_get_handle();
++        if (ldac_abr == NULL || ldac_ABR_Init(ldac_abr, BTIF_MEDIA_TIME_TICK) != 0)
++        {
++            APPL_TRACE_ERROR("Bidhata LDAC: ABR init failed, fixed eqmid");
++            if (ldac_abr) { ldac_ABR_free_handle(ldac_abr); ldac_abr = NULL; }
++        }
++    }
++    APPL_TRACE_WARNING("Bidhata LDAC: encoder ready mtu %d eqmid %d bitrate %d kbps abr %d",
++                       ldac_mtu, ldac_eqmid, ldacBT_get_bitrate(ldac_h), ldac_abr != NULL);
++    /* tell the UI what is on air (the Bidhata launcher shows it) */
++    property_set("bluetooth.a2dp.codec", ldac_abr ? "LDAC ABR" : "LDAC");
++}
++
++/* Called after feeding init: switch to LDAC if the stream was configured for LDAC. */
++static void bidhata_ldac_check(void)
++{
++    UINT16 mtu = 0;
++    char q[PROPERTY_VALUE_MAX];
++
++    APPL_TRACE_WARNING("Bidhata LDAC: check (feeding %d Hz)", btif_media_cb.media_feeding.cfg.pcm.sampling_freq);
++    if (!bta_av_co_audio_get_ldac_config(&mtu))
++    {
++        APPL_TRACE_WARNING("Bidhata LDAC: stream is not LDAC -> SBC");
++        bidhata_ldac_free();
++        return;
++    }
++    if (btif_media_cb.media_feeding.cfg.pcm.sampling_freq != 44100 ||
++        btif_media_cb.media_feeding.cfg.pcm.num_channel != 2 ||
++        btif_media_cb.media_feeding.cfg.pcm.bit_per_sample != 16)
++    {
++        APPL_TRACE_ERROR("Bidhata LDAC: unsupported PCM feeding %d/%d/%d",
++                         btif_media_cb.media_feeding.cfg.pcm.sampling_freq,
++                         btif_media_cb.media_feeding.cfg.pcm.num_channel,
++                         btif_media_cb.media_feeding.cfg.pcm.bit_per_sample);
++        return;
++    }
++    /* hq | sq | mq fixed; abr (default) starts at HQ and adapts to the link */
++    property_get("persist.bt.ldac.quality", q, "abr");
++    ldac_use_abr = FALSE;
++    if (!strcmp(q, "hq")) ldac_eqmid = LDACBT_EQMID_HQ;
++    else if (!strcmp(q, "sq")) ldac_eqmid = LDACBT_EQMID_SQ;
++    else if (!strcmp(q, "mq")) ldac_eqmid = LDACBT_EQMID_MQ;
++    else { ldac_eqmid = LDACBT_EQMID_HQ; ldac_use_abr = TRUE; }
++    /* bta reports the media MTU without the 12-byte RTP header; libldac wants the L2CAP MTU
++     * (it subtracts RTP + 1-byte payload header itself and requires >= 679). */
++    mtu += AVDT_MEDIA_HDR_SIZE;
++    /* largest packet must fit the AA buffer too */
++    if (mtu > BTIF_MEDIA_AA_BUF_SIZE - BTIF_MEDIA_AA_SBC_OFFSET - sizeof(BT_HDR))
++        mtu = BTIF_MEDIA_AA_BUF_SIZE - BTIF_MEDIA_AA_SBC_OFFSET - sizeof(BT_HDR);
++    ldac_mtu = mtu;
++    btif_media_cb.TxTranscoding = BTIF_MEDIA_TRSCD_PCM_2_LDAC;
++    ldac_pkts = ldac_underruns = ldac_drops = 0;
++    bidhata_ldac_reinit();
++}
++
++static void bidhata_ldac_enqueue(const UINT8 *data, int len, int frames)
++{
++    BT_HDR *p_buf;
++    if (btif_media_cb.tx_flush)
++    {
++        if (GKI_queue_length(&btif_media_cb.TxAaQ) > 0)
++            btif_media_flush_q(&(btif_media_cb.TxAaQ));
++        return;
++    }
++    while (GKI_queue_length(&btif_media_cb.TxAaQ) >= LDAC_MAX_TXQ)
++    {
++        GKI_freebuf(GKI_dequeue(&(btif_media_cb.TxAaQ)));
++        ldac_drops++;
++    }
++    if (NULL == (p_buf = GKI_getpoolbuf(BTIF_MEDIA_AA_POOL_ID)))
++    {
++        APPL_TRACE_ERROR("Bidhata LDAC: no buffer (TxAaQ %d)", GKI_queue_length(&btif_media_cb.TxAaQ));
++        return;
++    }
++    p_buf->offset = BTIF_MEDIA_AA_SBC_OFFSET;
++    p_buf->len = len;
++    p_buf->layer_specific = frames;
++    memcpy((UINT8 *)(p_buf + 1) + p_buf->offset, data, len);
++    *((UINT32 *)(p_buf + 1)) = btif_media_cb.timestamp;
++    GKI_enqueue(&(btif_media_cb.TxAaQ), p_buf);
++    if ((++ldac_pkts % 2000) == 0)
++        APPL_TRACE_WARNING("Bidhata LDAC: %u pkts, %u underruns, %u drops, bitrate %d, q %d",
++                           ldac_pkts, ldac_underruns, ldac_drops, ldacBT_get_bitrate(ldac_h),
++                           GKI_queue_length(&btif_media_cb.TxAaQ));
++}
++
++/* One 20 ms tick: encode the PCM due and queue finished LDAC packets. */
++static void bidhata_ldac_send(void)
++{
++    static UINT8 pcm[LDAC_PCM_CHUNK];
++    static UINT8 out[1024];
++    UINT32 us_this_tick = BTIF_MEDIA_TIME_TICK * 1000;
++    UINT64 now_us = time_now_us();
++    UINT32 chunks;
++    UINT16 event;
++
++    if (ldac_h == NULL)
++        return;
++    if (ldac_abr)
++    {
++        int before = ldacBT_get_eqmid(ldac_h);
++        ldac_ABR_Proc(ldac_h, ldac_abr, GKI_queue_length(&btif_media_cb.TxAaQ), 1);
++        if (ldacBT_get_eqmid(ldac_h) != before)
++            APPL_TRACE_WARNING("Bidhata LDAC: ABR eqmid %d -> %d (q %d) bitrate %d",
++                               before, ldacBT_get_eqmid(ldac_h), GKI_queue_length(&btif_media_cb.TxAaQ),
++                               ldacBT_get_bitrate(ldac_h));
++    }
++    if (last_frame_us != 0)
++        us_this_tick = (now_us - last_frame_us);
++    last_frame_us = now_us;
++    btif_media_cb.media_feeding_state.pcm.counter +=
++        btif_media_cb.media_feeding_state.pcm.bytes_per_tick * us_this_tick / (BTIF_MEDIA_TIME_TICK * 1000);
++    chunks = btif_media_cb.media_feeding_state.pcm.counter / LDAC_PCM_CHUNK;
++    if (chunks > 40)    /* cap catch-up after a stall (~116 ms) */
++        chunks = 40;
++    btif_media_cb.media_feeding_state.pcm.counter -= chunks * LDAC_PCM_CHUNK;
++
++    while (chunks--)
++    {
++        int used = 0, written = 0, frames = 0;
++        UINT32 n = UIPC_Read(UIPC_CH_ID_AV_AUDIO, &event, pcm, LDAC_PCM_CHUNK);
++        if (n < LDAC_PCM_CHUNK)
++        {
++            ldac_underruns++;
++            if (n == 0)
++            {
++                /* nothing to read: give the time back and stop for this tick */
++                btif_media_cb.media_feeding_state.pcm.counter += (chunks + 1) * LDAC_PCM_CHUNK;
++                return;
++            }
++            memset(pcm + n, 0, LDAC_PCM_CHUNK - n);
++        }
++        if (ldacBT_encode(ldac_h, pcm, &used, out, &written, &frames) < 0)
++        {
++            APPL_TRACE_ERROR("Bidhata LDAC: encode error %d, re-init", ldacBT_get_error_code(ldac_h));
++            bidhata_ldac_reinit();
++            return;
++        }
++        if (written > 0)
++            bidhata_ldac_enqueue(out, written, frames);
++        btif_media_cb.timestamp += LDACBT_ENC_LSU;
++    }
++}
++
++/*******************************************************************************
++ ** Bidhata: AAC encoding (FDK-AAC, AAC-LC, LATM MCP1, 1 frame per packet, no payload header)
++ *******************************************************************************/
++static void bidhata_aac_free(void)
++{
++    if (aac_h)
++    {
++        aacEncClose(&aac_h);
++        aac_h = NULL;
++    }
++}
++
++static void bidhata_aac_reinit(void)
++{
++    AACENC_ERROR e;
++    AACENC_InfoStruct info;
++    UINT32 max_br;
++
++    bidhata_aac_free();
++    if ((e = aacEncOpen(&aac_h, 0, 2)) != AACENC_OK)
++    {
++        APPL_TRACE_ERROR("Bidhata AAC: aacEncOpen err 0x%x, SBC fallback", e);
++        aac_h = NULL;
++        btif_media_cb.TxTranscoding = BTIF_MEDIA_TRSCD_PCM_2_SBC;
++        return;
++    }
++    /* keep the average frame well inside the MTU (no peak-bitrate control in this FDK).
++     * 75% gave ~0.5% frames > MTU (dropped) on the Huawei; default 66%, tunable 50..90. */
++    {
++        char pct_s[PROPERTY_VALUE_MAX];
++        int pct;
++        property_get("persist.bt.aac.mtu_pct", pct_s, "66");
++        pct = atoi(pct_s);
++        if (pct < 50 || pct > 90) pct = 66;
++        max_br = (UINT32)(aac_mtu * 8 * pct / 100) * 44100 / AAC_FRAME_SAMPLES;
++    }
++    if (aac_bitrate == 0) aac_bitrate = 256000;
++    if (aac_bitrate > max_br) aac_bitrate = max_br;
++    if (aacEncoder_SetParam(aac_h, AACENC_AOT, aac_mpeg2 ? AOT_MP2_AAC_LC : AOT_AAC_LC) != AACENC_OK &&
++        aacEncoder_SetParam(aac_h, AACENC_AOT, AOT_AAC_LC) != AACENC_OK)
++        APPL_TRACE_ERROR("Bidhata AAC: set AOT failed");
++    aacEncoder_SetParam(aac_h, AACENC_SAMPLERATE, 44100);
++    aacEncoder_SetParam(aac_h, AACENC_CHANNELMODE, MODE_2);
++    aacEncoder_SetParam(aac_h, AACENC_CHANNELORDER, 1);
++    aacEncoder_SetParam(aac_h, AACENC_BITRATEMODE, 0);           /* CBR */
++    aacEncoder_SetParam(aac_h, AACENC_BITRATE, aac_bitrate);
++    aacEncoder_SetParam(aac_h, AACENC_TRANSMUX, TT_MP4_LATM_MCP1);
++    aacEncoder_SetParam(aac_h, AACENC_HEADER_PERIOD, 1);
++    aacEncoder_SetParam(aac_h, AACENC_AFTERBURNER, 1);
++    if ((e = aacEncEncode(aac_h, NULL, NULL, NULL, NULL)) != AACENC_OK ||
++        aacEncInfo(aac_h, &info) != AACENC_OK)
++    {
++        APPL_TRACE_ERROR("Bidhata AAC: encoder init err 0x%x, SBC fallback", e);
++        bidhata_aac_free();
++        btif_media_cb.TxTranscoding = BTIF_MEDIA_TRSCD_PCM_2_SBC;
++        return;
++    }
++    property_set("bluetooth.a2dp.codec", "AAC");
++    APPL_TRACE_WARNING("Bidhata AAC: encoder ready mtu %d bitrate %u %s frame %d maxout %d",
++                       aac_mtu, aac_bitrate, aac_mpeg2 ? "MPEG-2" : "MPEG-4", info.frameLength, info.maxOutBufBytes);
++}
++
++static void bidhata_aac_check(void)
++{
++    UINT16 mtu = 0;
++    UINT32 br = 0;
++    BOOLEAN mpeg2 = TRUE;
++
++    if (!bta_av_co_audio_get_aac_config(&mtu, &br, &mpeg2))
++    {
++        bidhata_aac_free();
++        return;
++    }
++    if (btif_media_cb.media_feeding.cfg.pcm.sampling_freq != 44100 ||
++        btif_media_cb.media_feeding.cfg.pcm.num_channel != 2 ||
++        btif_media_cb.media_feeding.cfg.pcm.bit_per_sample != 16)
++    {
++        APPL_TRACE_ERROR("Bidhata AAC: unsupported PCM feeding");
++        return;
++    }
++    if (mtu > BTIF_MEDIA_AA_BUF_SIZE - BTIF_MEDIA_AA_SBC_OFFSET - sizeof(BT_HDR))
++        mtu = BTIF_MEDIA_AA_BUF_SIZE - BTIF_MEDIA_AA_SBC_OFFSET - sizeof(BT_HDR);
++    aac_mtu = mtu;              /* media payload limit (RTP header excluded, no payload header) */
++    aac_bitrate = br;
++    aac_mpeg2 = mpeg2;
++    aac_pkts = aac_underruns = aac_drops = aac_oversize = 0;
++    btif_media_cb.TxTranscoding = BTIF_MEDIA_TRSCD_PCM_2_AAC;
++    bidhata_aac_reinit();
++}
++
++static void bidhata_aac_send(void)
++{
++    static INT16 pcm[AAC_FRAME_SAMPLES * 2];
++    static UINT8 out[2048];
++    UINT32 us_this_tick = BTIF_MEDIA_TIME_TICK * 1000;
++    UINT64 now_us = time_now_us();
++    UINT32 frames;
++    UINT16 event;
++
++    if (aac_h == NULL)
++        return;
++    if (last_frame_us != 0)
++        us_this_tick = (now_us - last_frame_us);
++    last_frame_us = now_us;
++    btif_media_cb.media_feeding_state.pcm.counter +=
++        btif_media_cb.media_feeding_state.pcm.bytes_per_tick * us_this_tick / (BTIF_MEDIA_TIME_TICK * 1000);
++    frames = btif_media_cb.media_feeding_state.pcm.counter / AAC_PCM_FRAME;
++    if (frames > 5)
++        frames = 5;
++    btif_media_cb.media_feeding_state.pcm.counter -= frames * AAC_PCM_FRAME;
++
++    while (frames--)
++    {
++        AACENC_BufDesc in_desc, out_desc;
++        AACENC_InArgs in_args;
++        AACENC_OutArgs out_args;
++        void *in_ptr = pcm, *out_ptr = out;
++        INT in_id = IN_AUDIO_DATA, in_size = AAC_PCM_FRAME, in_el = 2;
++        INT out_id = OUT_BITSTREAM_DATA, out_size = sizeof(out), out_el = 1;
++        AACENC_ERROR e;
++        BT_HDR *p_buf;
++        UINT32 n = UIPC_Read(UIPC_CH_ID_AV_AUDIO, &event, (UINT8 *)pcm, AAC_PCM_FRAME);
++
++        if (n < AAC_PCM_FRAME)
++        {
++            aac_underruns++;
++            if (n == 0)
++            {
++                btif_media_cb.media_feeding_state.pcm.counter += (frames + 1) * AAC_PCM_FRAME;
++                return;
++            }
++            memset((UINT8 *)pcm + n, 0, AAC_PCM_FRAME - n);
++        }
++        in_desc.numBufs = 1; in_desc.bufs = &in_ptr; in_desc.bufferIdentifiers = &in_id;
++        in_desc.bufSizes = &in_size; in_desc.bufElSizes = &in_el;
++        out_desc.numBufs = 1; out_desc.bufs = &out_ptr; out_desc.bufferIdentifiers = &out_id;
++        out_desc.bufSizes = &out_size; out_desc.bufElSizes = &out_el;
++        in_args.numInSamples = AAC_FRAME_SAMPLES * 2;
++        in_args.numAncBytes = 0;
++        memset(&out_args, 0, sizeof(out_args));
++        e = aacEncEncode(aac_h, &in_desc, &out_desc, &in_args, &out_args);
++        btif_media_cb.timestamp += AAC_FRAME_SAMPLES;
++        if (e != AACENC_OK)
++        {
++            APPL_TRACE_ERROR("Bidhata AAC: encode err 0x%x", e);
++            continue;
++        }
++        if (out_args.numOutBytes <= 0)
++            continue;
++        if (out_args.numOutBytes > aac_mtu)
++        {
++            aac_oversize++;
++            continue;
++        }
++        if (btif_media_cb.tx_flush)
++        {
++            if (GKI_queue_length(&btif_media_cb.TxAaQ) > 0)
++                btif_media_flush_q(&(btif_media_cb.TxAaQ));
++            continue;
++        }
++        while (GKI_queue_length(&btif_media_cb.TxAaQ) >= 18)    /* ~400 ms of AAC frames */
++        {
++            GKI_freebuf(GKI_dequeue(&(btif_media_cb.TxAaQ)));
++            aac_drops++;
++        }
++        if (NULL == (p_buf = GKI_getpoolbuf(BTIF_MEDIA_AA_POOL_ID)))
++            continue;
++        p_buf->offset = BTIF_MEDIA_AA_SBC_OFFSET;
++        p_buf->len = out_args.numOutBytes;
++        p_buf->layer_specific = 1;
++        memcpy((UINT8 *)(p_buf + 1) + p_buf->offset, out, out_args.numOutBytes);
++        *((UINT32 *)(p_buf + 1)) = btif_media_cb.timestamp - AAC_FRAME_SAMPLES;
++        GKI_enqueue(&(btif_media_cb.TxAaQ), p_buf);
++        if ((++aac_pkts % 1000) == 0)
++            APPL_TRACE_WARNING("Bidhata AAC: %u pkts, %u underruns, %u drops, %u oversize, q %d",
++                               aac_pkts, aac_underruns, aac_drops, aac_oversize, GKI_queue_length(&btif_media_cb.TxAaQ));
++    }
++}
++
+diff --git a/device/src/controller.c b/device/src/controller.c
+index df00d68..a85cfa4 100755
+--- a/device/src/controller.c
++++ b/device/src/controller.c
+@@ -28,6 +28,9 @@
+ #include "osi/include/future.h"
+ #include "hcimsgs.h"
+ #include "hci/include/hci_layer.h"
++#include "hci/include/buffer_allocator.h"
++#include "osi/include/log.h"
++#include <stdio.h>
+ #include "hci/include/hci_packet_factory.h"
+ #include "hci/include/hci_packet_parser.h"
+ #include "btcore/include/module.h"
+@@ -83,6 +86,45 @@ static bool secure_connections_supported;
+ 
+ #define AWAIT_COMMAND(command) future_await(hci->transmit_command_futured(command))
+ 
++// Bidhata-Q5: the MediaTek BT library cannot read our NVRAM record, so the chip would come up
++// with MediaTek's default address on every unit. q5_nvram_mac.sh writes a per-unit address to
++// this file; hand it to the chip with MediaTek's "set local BD address" vendor command.
++#define Q5_BDADDR_FILE "/data/misc/bluedroid/bdaddr"
++#define HCI_MTK_SET_BD_ADDR 0xFC1A
++
++static void q5_bdaddr_complete(BT_HDR *response, UNUSED_ATTR void *context) {
++  buffer_allocator_get_interface()->free(response);
++}
++
++static void q5_bdaddr_status(uint8_t status, BT_HDR *command, UNUSED_ATTR void *context) {
++  LOG_WARN("%s set bd addr answered with status 0x%02x", __func__, status);
++  buffer_allocator_get_interface()->free(command);
++}
++
++static void q5_set_bdaddr(void) {
++  char text[32] = {0};
++  bt_bdaddr_t addr;
++  FILE *f = fopen(Q5_BDADDR_FILE, "r");
++  if (!f)
++    return;
++  if (!fgets(text, sizeof(text), f))
++    text[0] = 0;
++  fclose(f);
++  text[17] = 0;
++  if (!string_to_bdaddr(text, &addr))
++    return;
++
++  // the command wants the address least significant byte first
++  uint8_t le[6];
++  for (int i = 0; i < 6; i++)
++    le[i] = addr.address[5 - i];
++  // Not awaited: an unknown vendor command may only get a command status, which a future
++  // would never see. Commands go out in order, so it lands before READ_BD_ADDR below.
++  hci->transmit_command(packet_factory->make_vendor_command(HCI_MTK_SET_BD_ADDR, le, sizeof(le)),
++                        q5_bdaddr_complete, q5_bdaddr_status, NULL);
++  LOG_INFO("%s requested %s", __func__, text);
++}
++
+ // Module lifecycle functions
+ 
+ static future_t *start_up(void) {
+@@ -92,6 +134,8 @@ static future_t *start_up(void) {
+   response = AWAIT_COMMAND(packet_factory->make_reset());
+   packet_parser->parse_generic_command_complete(response);
+ 
++  q5_set_bdaddr();
++
+   // Request the classic buffer size next
+   response = AWAIT_COMMAND(packet_factory->make_read_buffer_size());
+   packet_parser->parse_read_buffer_size_response(
+diff --git a/hci/include/hci_packet_factory.h b/hci/include/hci_packet_factory.h
+index 0056817..3b95d14 100755
+--- a/hci/include/hci_packet_factory.h
++++ b/hci/include/hci_packet_factory.h
+@@ -42,6 +42,7 @@ typedef struct {
+   BT_HDR *(*make_ble_set_event_mask)(const bt_event_mask_t *event_mask);
+   BT_HDR *(*make_read_local_supported_codecs)(void);
+   BT_HDR *(*make_ble_read_offload_features_support)(void);
++  BT_HDR *(*make_vendor_command)(uint16_t opcode, const uint8_t *params, size_t length);
+ } hci_packet_factory_t;
+ 
+ const hci_packet_factory_t *hci_packet_factory_get_interface();
+diff --git a/hci/src/hci_packet_factory.c b/hci/src/hci_packet_factory.c
+index d43d274..4461f9d 100755
+--- a/hci/src/hci_packet_factory.c
++++ b/hci/src/hci_packet_factory.c
+@@ -35,6 +35,13 @@ static BT_HDR *make_command(uint16_t opcode, size_t parameter_size, uint8_t **st
+ 
+ // Interface functions
+ 
++static BT_HDR *make_vendor_command(uint16_t opcode, const uint8_t *params, size_t length) {
++  uint8_t *stream;
++  BT_HDR *packet = make_command(opcode, length, &stream);
++  ARRAY_TO_STREAM(stream, params, (int)length);
++  return packet;
++}
++
+ static BT_HDR *make_reset(void) {
+   return make_command_no_params(HCI_RESET);
+ }
+@@ -203,7 +210,8 @@ static const hci_packet_factory_t interface = {
+   make_ble_read_suggested_default_data_length,
+   make_ble_set_event_mask,
+   make_read_local_supported_codecs,
+-  make_ble_read_offload_features_support
++  make_ble_read_offload_features_support,
++  make_vendor_command
+ };
+ 
+ const hci_packet_factory_t *hci_packet_factory_get_interface() {
+diff --git a/main/Android.mk b/main/Android.mk
+index d98d2ef..499adde 100644
+--- a/main/Android.mk
++++ b/main/Android.mk
+@@ -99,6 +99,10 @@ LOCAL_SRC_FILES+= \
+ 	../udrv/ulinux/uipc.c
+ 
+ LOCAL_C_INCLUDES+= . \
++	device/timmkoo/q5/libldac/inc \
++	device/timmkoo/q5/libldac/abr/inc \
++	external/aac/libAACenc/include \
++	external/aac/libSYS/include \
+ 	$(LOCAL_PATH)/../ \
+ 	$(LOCAL_PATH)/../bta/include \
+ 	$(LOCAL_PATH)/../bta/sys \
+@@ -148,6 +152,8 @@ ifeq ($(TARGET_PRODUCT), full_maguro)
+ endif
+ 
+ LOCAL_SHARED_LIBRARIES := \
++    libldacBT_enc \
++    libldacBT_abr \
+     libcutils \
+     libdl \
+     liblog \
+@@ -157,6 +163,7 @@ LOCAL_SHARED_LIBRARIES := \
+     libutils
+ 
+ LOCAL_STATIC_LIBRARIES := \
++    libFraunhoferAAC \
+     libtinyxml2 \
+     libbt-qcom_sbc_decoder
+ 

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bidhata: Settings in the same dark / ice-blue look as the home screen. -->
+<resources>
+    <style name="Theme.SettingsBase" parent="@android:style/Theme.Material">
+        <item name="android:colorPrimary">#FF161618</item>
+        <item name="android:colorPrimaryDark">#FF0E0E10</item>
+        <item name="android:colorAccent">#FF7FD4FF</item>
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:colorBackground">#FF0E0E10</item>
+        <item name="android:navigationBarColor">#FF0E0E10</item>
+        <item name="android:textColorSecondary">#FF9A9AA0</item>
+    </style>
+</resources>

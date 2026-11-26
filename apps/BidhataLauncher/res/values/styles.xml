@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Bidhata" parent="@android:style/Theme.Material.NoActionBar">
+        <!-- drawn once by the window; layouts stay transparent so nothing paints twice -->
+        <item name="android:windowBackground">@drawable/home_bg</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:colorPrimary">@color/surface</item>
+        <item name="android:colorPrimaryDark">@color/bg</item>
+        <item name="android:statusBarColor">@color/bg</item>
+        <item name="android:navigationBarColor">@color/bg</item>
+        <item name="android:textColorPrimary">@color/text</item>
+        <item name="android:textColorSecondary">@color/text_dim</item>
+        <item name="android:windowAnimationStyle">@style/PageAnim</item>
+    </style>
+
+    <!-- home: the landscape runs up under a see-through status bar -->
+    <style name="Theme.Bidhata.Home">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">@color/home_bg</item>
+    </style>
+
+    <style name="Theme.Bidhata.Lock">
+        <item name="android:windowBackground">@drawable/lock_bg</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowTranslucentNavigation">false</item>
+    </style>
+
+    <style name="PageAnim" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/page_in</item>
+        <item name="android:activityOpenExitAnimation">@anim/hold</item>
+        <item name="android:activityCloseEnterAnimation">@anim/hold</item>
+        <item name="android:activityCloseExitAnimation">@anim/page_out</item>
+    </style>
+</resources>

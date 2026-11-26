@@ -1,0 +1,10 @@
+# Recovery-only bits for the Q5. Use MediaTek's USB ids so the same Windows adb driver
+# that works in Android also binds in recovery.
+on init
+    write /sys/class/android_usb/android0/enable 0
+    write /sys/class/android_usb/android0/idVendor 0E8D
+    write /sys/class/android_usb/android0/idProduct 2003
+    write /sys/class/android_usb/android0/functions adb
+    write /sys/class/android_usb/android0/iManufacturer TIMMKOO
+    write /sys/class/android_usb/android0/iProduct Q5
+    write /sys/class/android_usb/android0/enable 1

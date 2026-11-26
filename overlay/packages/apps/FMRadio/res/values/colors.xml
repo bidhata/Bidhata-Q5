@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="fm_main_color">#FF0E0E10</color>
+    <color name="theme_primarydark_color">#FF0E0E10</color>
+    <color name="theme_primary_color">#FF161618</color>
+    <color name="theme_windowBackground">#FF0E0E10</color>
+    <color name="text_fm_color">#FFECECEC</color>
+    <color name="actionbar_overflow_title_color">#DEFFFFFF</color>
+    <color name="actionbar_overflow_title_disabled_color">#55FFFFFF</color>
+</resources>

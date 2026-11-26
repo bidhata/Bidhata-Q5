@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Local manifest for Bidhata-Q5: LineageOS cm-13.0 + this device tree + FM Radio.
+     tools/setup.sh copies it to .repo/local_manifests/ for you. -->
+<manifest>
+  <remote name="gh" fetch="https://github.com/" />
+  <project name="bidhata/Bidhata-Q5" path="device/timmkoo/q5" remote="gh" revision="main" />
+  <project name="LineageOS/android_packages_apps_FMRadio" path="packages/apps/FMRadio" remote="gh" revision="cm-13.0" />
+</manifest>

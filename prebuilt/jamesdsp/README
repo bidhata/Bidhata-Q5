@@ -1,0 +1,5 @@
+JamesDSP (GPL-3.0) - https://github.com/james34602/JamesDSPManager
+Files taken unmodified from the release asset jdsp_v6.0.zip (tag 28Nov2023):
+  common/files/arm/libjamesdsp.so      -> /system/lib/soundfx/libjamesdsp.so
+  common/files/JamesDSPManager.apk     -> /system/app/JamesDSPManager (app 9.5, minSdk 21)
+All imported symbols resolve against the cm-13.0 libc/libm/libdl/liblog of this build.

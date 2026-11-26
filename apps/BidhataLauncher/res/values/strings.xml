@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Bidhata Home</string>
+    <string name="all_apps">All apps</string>
+    <string name="nothing_playing">Nothing playing</string>
+    <string name="open_player">Tap to open the player</string>
+    <string name="share_off">Wi-Fi Share · off</string>
+    <string name="share_no_wifi">Connect to Wi-Fi first</string>
+    <string name="share_on">Wi-Fi Share · on</string>
+    <string name="more">More</string>
+    <string name="share_hint">Browse and copy files from a computer on the same Wi-Fi</string>
+    <string name="brand" translatable="false">BIDHATA</string>
+    <string name="swipe_unlock">Swipe up to unlock</string>
+    <string name="resume_hint">Resume  ·  %1$s</string>
+    <string name="cd_prev">Previous track</string>
+    <string name="cd_play">Play or pause</string>
+    <string name="cd_next">Next track</string>
+    <string name="sound">Sound</string>
+    <string name="ae_hint">Search your headphones (AutoEQ)</string>
+    <string name="ae_wired">Wired</string>
+    <string name="ae_bt">Bluetooth</string>
+    <string name="ae_speaker">Speaker</string>
+    <string name="ae_off">AutoEQ off</string>
+    <string name="ae_advanced">JamesDSP…</string>
+    <string name="ae_active">AutoEQ: %1$s</string>
+    <string name="ae_none">AutoEQ: off for this output</string>
+    <string name="ae_loading">Loading the AutoEQ database…</string>
+    <string name="ae_count">%1$d headphones. Type at least two letters.</string>
+    <string name="ae_offline">Could not load AutoEQ (%1$s). Connect to Wi-Fi and reopen.</string>
+    <string name="ae_fetching">Getting %1$s…</string>
+    <string name="ae_failed">Could not get the profile (%1$s).</string>
+    <string name="ae_applied">Applied %1$s.</string>
+    <string name="ae_turned_off">AutoEQ turned off for this output.</string>
+    <string name="wired_bt">Bluetooth off while wired headphones are in</string>
+    <string name="bootname_title">Boot screen name</string>
+    <string name="bootname_hint">Your name (shown when the player starts)</string>
+    <string name="bootname_save">Save</string>
+    <string name="bootname_default">Default</string>
+    <string name="bootname_working">Creating…</string>
+    <string name="bootname_done">Shows on the next start</string>
+    <string name="bootname_failed">Could not create it</string>
+    <string name="bt_codec">Bluetooth codec</string>
+    <string name="ldac_quality">LDAC quality</string>
+    <string-array name="bt_codec_names">
+        <item>Auto (best)</item>
+        <item>LDAC</item>
+        <item>AAC</item>
+        <item>SBC XQ</item>
+    </string-array>
+    <string-array name="ldac_quality_names">
+        <item>Adaptive</item>
+        <item>990 kbps</item>
+        <item>660 kbps</item>
+        <item>330 kbps</item>
+    </string-array>
+    <string name="bt_reconnect">Takes effect the next time the headphones connect</string>
+    <string name="listening_room">Listening Room</string>
+    <string name="power_title">Power &amp; updates</string>
+    <string name="power_off_at">Turn off every day at</string>
+    <string name="power_on_at">Turn on every day at</string>
+    <string name="power_hint">Tap a time to change it. Turning on works from fully off; on a charger the player starts from the charging screen.</string>
+    <string name="power_recovery">Restart into TWRP (for updates)</string>
+    <string name="power_recovery_ask">The player restarts into TWRP. Music stops. Continue?</string>
+</resources>

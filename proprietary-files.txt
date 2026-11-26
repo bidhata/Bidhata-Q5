@@ -1,0 +1,82 @@
+# Bidhata-Q5 proprietary files. Default source: j5052 system.img (alps 5.0, matches the prebuilt 3.10 kernel).
+# 'sprout:' = TheMuppets proprietary_vendor_google cm-12.1 sprout (AOSP-5.1-built, used where j5052 has no equivalent).
+
+# Graphics, audio, CONSYS, NVRAM, thermal, Wi-Fi (dependency closure of tools/roots.txt)
+# libion: j5052 build matches the 3.10 kernel ION ABI (standard API only)
+lib/libion.so
+# Backlight HAL (self-contained, /sys/class/leds)
+lib/hw/lights.default.so
+bin/6620_launcher
+bin/nvram_daemon
+bin/thermal
+bin/thermal_manager
+bin/wmt_loader
+lib/egl/libEGL_mali.so
+lib/egl/libGLESv1_CM_mali.so
+lib/egl/libGLESv2_mali.so
+lib/hw/audio.primary.mt6582.so
+lib/hw/gralloc.mt6582.so
+lib/hw/hwcomposer.mt6582.so
+lib/libMali.so
+lib/libaed.so
+lib/libaudiocompensationfilter.so
+lib/libaudiocomponentengine.so
+lib/libaudiocustparam.so
+lib/libaudiodcrflt.so
+lib/libaudiomtkdcremoval.so
+lib/libaudiosetting.so
+lib/libbessound_hd_mtk.so
+lib/libblisrc.so
+lib/libblisrc32.so
+lib/libbluetoothdrv.so
+lib/libbwc.so
+lib/libcustom_nvram.so
+lib/libcvsd_mtk.so
+lib/libdpframework.so
+lib/libfile_op.so
+lib/libgralloc_extra.so
+lib/libgui_ext.so
+lib/libhwm.so
+lib/libion_mtk.so
+lib/libm4u.so
+lib/libmsbc_mtk.so
+lib/libmtk_drvb.so
+lib/libmtk_mali_user.so
+lib/libmtklimiter.so
+lib/libmtkshifter.so
+lib/libnvram.so
+lib/libnvram_daemon_callback.so
+lib/libnvram_platform.so
+lib/libnvram_sec.so
+lib/libperfservicenative.so
+lib/libspeech_enh_lib.so
+lib/libui_ext.so
+lib/libwapi.so
+
+# Firmware and configs
+etc/firmware/ROMv1_patch_1_0_hdr.bin
+etc/firmware/ROMv1_patch_1_1_hdr.bin
+etc/firmware/WIFI_RAM_CODE_SOC
+etc/firmware/WMT_SOC.cfg
+etc/firmware/mt6627/mt6627_fm_v1_coeff.bin
+etc/firmware/mt6627/mt6627_fm_v1_patch.bin
+etc/firmware/mt6627/mt6627_fm_v2_coeff.bin
+etc/firmware/mt6627/mt6627_fm_v2_patch.bin
+etc/firmware/mt6627/mt6627_fm_v3_coeff.bin
+etc/firmware/mt6627/mt6627_fm_v3_patch.bin
+etc/firmware/mt6627/mt6627_fm_v4_coeff.bin
+etc/firmware/mt6627/mt6627_fm_v4_patch.bin
+etc/firmware/mt6627/mt6627_fm_v5_coeff.bin
+etc/firmware/mt6627/mt6627_fm_v5_patch.bin
+etc/.tp/thermal.conf
+etc/.tp/thermal.off.conf
+etc/.tp/.ht120.mtc
+etc/wifi/wpa_supplicant_overlay.conf
+etc/wifi/p2p_supplicant_overlay.conf
+etc/audio_policy.conf
+etc/throttle.sh
+
+# Bluetooth: bluedroid vendor lib for CONSYS (j5052 used MediaTek's own stack, so has no libbt-vendor)
+sprout:lib/libbt-vendor.so
+sprout:lib/libbluetooth_mtk.so
+sprout:lib/libbluetooth_mtk_pure.so

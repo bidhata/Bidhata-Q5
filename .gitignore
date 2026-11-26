@@ -1,0 +1,7 @@
+# Proprietary MediaTek files and third-party APKs never go into git.
+# extract-files.sh and tools/fetch-apps.sh recreate them.
+/prebuilt/kernel
+/prebuilt/lib/libcustom_nvram.so
+/prebuilt/lib/libfmcust.so
+/prebuilt/lib/libmtcloader.so
+/prebuilt/preinstall/*.apk

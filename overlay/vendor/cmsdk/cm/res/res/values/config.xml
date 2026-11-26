@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Q5: no colour-temperature shifting by default. The panel has no hardware colour control, so LiveDisplay
+     falls back to a GPU colour matrix that just makes the screen look dim and yellow at night. -->
+<resources>
+    <integer name="config_defaultLiveDisplayMode">0</integer>
+</resources>

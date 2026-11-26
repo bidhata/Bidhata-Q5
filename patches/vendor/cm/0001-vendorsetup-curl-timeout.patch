@@ -1,0 +1,10 @@
+diff --git a/vendorsetup.sh b/vendorsetup.sh
+index 41f28c2..69164e1 100644
+--- a/vendorsetup.sh
++++ b/vendorsetup.sh
+@@ -1,4 +1,4 @@
+-for combo in $(curl -s https://raw.githubusercontent.com/LineageOS/hudson/master/lineage-build-targets | sed -e 's/#.*$//' | grep cm-13.0 | awk '{printf "lineage_%s-%s\n", $1, $2}')
++for combo in $(curl -s -m 10 https://raw.githubusercontent.com/LineageOS/hudson/master/lineage-build-targets | sed -e 's/#.*$//' | grep cm-13.0 | awk '{printf "lineage_%s-%s\n", $1, $2}')
+ do
+     add_lunch_combo $combo
+ done

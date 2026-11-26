@@ -1,0 +1,27 @@
+diff --git a/services/core/java/com/android/server/AlarmManagerService.java b/services/core/java/com/android/server/AlarmManagerService.java
+index 5875ca95..2d6fa0af 100644
+--- a/services/core/java/com/android/server/AlarmManagerService.java
++++ b/services/core/java/com/android/server/AlarmManagerService.java
+@@ -864,6 +864,22 @@ class AlarmManagerService extends SystemService {
+         mDateChangeSender = PendingIntent.getBroadcastAsUser(getContext(), 0, intent,
+                 Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT, UserHandle.ALL);
+         
++        // Bidhata-Q5: scheduled power-on. MediaTek's alarm driver can switch the player on from
++        // power-off (alarm type 6 = power on with boot logo), but only the process holding
++        // /dev/alarm may set it, which is us. At shutdown, arm it for persist.bidhata.poweron
++        // (unix seconds) if that is still in the future.
++        getContext().registerReceiver(new BroadcastReceiver() {
++            @Override
++            public void onReceive(Context context, Intent intent) {
++                long at = SystemProperties.getLong("persist.bidhata.poweron", 0);
++                long now = System.currentTimeMillis() / 1000;
++                if (at > now + 30 && mNativeData != 0) {
++                    Slog.i(TAG, "Bidhata: power on scheduled for " + at);
++                    set(mNativeData, 6 /* MTK ANDROID_ALARM_POWER_ON_LOGO */, at, 0);
++                }
++            }
++        }, new IntentFilter(Intent.ACTION_SHUTDOWN));
++
+         // now that we have initied the driver schedule the alarm
+         mClockReceiver = new ClockReceiver();
+         mClockReceiver.scheduleTimeTickEvent();

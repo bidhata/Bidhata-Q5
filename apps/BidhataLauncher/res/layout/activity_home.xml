@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bidhata home, "Listening Room": landscape hero under a serif title, now-playing strip only
+     while something plays, eight large tiles. Sized for 480x800. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/home_hero"
+        android:importantForAccessibility="no" />
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:layout_marginTop="80dp"
+        android:background="@drawable/lock_fade" />
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingTop="24dp"
+    android:paddingLeft="14dp"
+    android:paddingRight="14dp"
+    android:paddingBottom="10dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:paddingLeft="4dp"
+        android:text="@string/listening_room"
+        android:textColor="#FFF0ECE4"
+        android:textSize="31sp"
+        android:fontFamily="serif"
+        android:lineSpacingMultiplier="0.9"
+        android:shadowColor="#99000000" android:shadowRadius="8" />
+    <TextClock
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:layout_marginBottom="12dp"
+        android:paddingLeft="5dp"
+        android:format12Hour="EEEE, d MMMM"
+        android:format24Hour="EEEE, d MMMM"
+        android:textColor="#FFE1D7C6"
+        android:textSize="12sp"
+        android:shadowColor="#99000000" android:shadowRadius="6" />
+
+    <!-- now playing -->
+    <LinearLayout
+        android:id="@+id/np_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:orientation="horizontal"
+        android:layout_marginBottom="3dp"
+        android:background="@drawable/strip_bg"
+        android:stateListAnimator="@animator/press"
+        android:padding="10dp">
+        <FrameLayout
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:layout_gravity="center_vertical">
+            <ImageView
+                android:id="@+id/np_art"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:background="@drawable/art_frame"
+                android:importantForAccessibility="no" />
+            <!-- no cover: a record that turns while the music plays -->
+            <ImageView
+                android:id="@+id/np_vinyl"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/vinyl_disc"
+                android:visibility="gone"
+                android:importantForAccessibility="no" />
+            <ImageView
+                android:id="@+id/np_sheen"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/vinyl_sheen"
+                android:visibility="gone"
+                android:importantForAccessibility="no" />
+        </FrameLayout>
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:orientation="vertical"
+            android:layout_marginLeft="12dp"
+            android:layout_marginRight="8dp">
+            <TextView
+                android:id="@+id/np_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textColor="#FFF0ECE4"
+                android:textSize="16sp"
+                android:fontFamily="serif" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <TextView
+                    android:id="@+id/np_artist"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxWidth="140dp"
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:textColor="@color/text_dim"
+                    android:textSize="12sp" />
+                <TextView
+                    android:id="@+id/np_codec"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="8dp"
+                    android:singleLine="true"
+                    android:textColor="@color/accent"
+                    android:textSize="11sp"
+                    android:fontFamily="sans-serif-medium" />
+            </LinearLayout>
+            <ProgressBar
+                android:id="@+id/np_progress"
+                style="@android:style/Widget.Material.ProgressBar.Horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:layout_marginTop="8dp"
+                android:max="1000"
+                android:progressTint="@color/accent"
+                android:progressBackgroundTint="#44FFFFFF" />
+        </LinearLayout>
+        <ImageButton android:id="@+id/np_prev" android:visibility="gone"
+            android:layout_width="1dp" android:layout_height="1dp" android:contentDescription="@string/cd_prev" />
+        <ImageButton android:id="@+id/np_play" android:contentDescription="@string/cd_play"
+            android:layout_width="48dp" android:layout_height="48dp"
+            android:layout_gravity="center_vertical"
+            android:background="@drawable/ring" android:src="@drawable/ic_play" />
+        <ImageButton android:id="@+id/np_next" android:visibility="gone"
+            android:layout_width="1dp" android:layout_height="1dp" android:contentDescription="@string/cd_next" />
+    </LinearLayout>
+
+    <!-- tiles -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:layout_marginTop="9dp">
+        <include android:id="@+id/tile_music" layout="@layout/tile" />
+        <View android:layout_width="9dp" android:layout_height="1dp" />
+        <include android:id="@+id/tile_radio" layout="@layout/tile" />
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:layout_marginTop="9dp">
+        <include android:id="@+id/tile_books" layout="@layout/tile" />
+        <View android:layout_width="9dp" android:layout_height="1dp" />
+        <include android:id="@+id/tile_video" layout="@layout/tile" />
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:layout_marginTop="9dp">
+        <include android:id="@+id/tile_recorder" layout="@layout/tile" />
+        <View android:layout_width="9dp" android:layout_height="1dp" />
+        <include android:id="@+id/tile_eq" layout="@layout/tile" />
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:layout_marginTop="9dp">
+        <include android:id="@+id/tile_files" layout="@layout/tile" />
+        <View android:layout_width="9dp" android:layout_height="1dp" />
+        <include android:id="@+id/tile_more" layout="@layout/tile" />
+    </LinearLayout>
+</LinearLayout>
+</FrameLayout>

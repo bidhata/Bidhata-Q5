@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bidhata lockscreen. Playing: the cover fills the top and fades into the page.
+     Idle: a full-screen night landscape with a big serif clock. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/lock_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF090F12">
+
+    <!-- idle scene -->
+    <ImageView
+        android:id="@+id/lock_scene"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:importantForAccessibility="no"
+        android:src="@drawable/lock_scene" />
+
+    <!-- playing: cover across the top, fading out -->
+    <FrameLayout
+        android:id="@+id/lock_art_box"
+        android:layout_width="match_parent"
+        android:layout_height="320dp">
+        <ImageView
+            android:id="@+id/lock_art"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:importantForAccessibility="no" />
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="150dp"
+            android:layout_gravity="bottom"
+            android:background="@drawable/lock_fade" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/lock_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="26dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/brand"
+                android:textColor="#E6F3E3C3"
+                android:textSize="11sp"
+                android:letterSpacing="0.2"
+                android:fontFamily="sans-serif-medium"
+                android:shadowColor="#99000000" android:shadowRadius="4" />
+            <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+            <TextView
+                android:id="@+id/lock_battery"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFF0ECE4"
+                android:textSize="14sp"
+                android:shadowColor="#99000000" android:shadowRadius="4" />
+        </LinearLayout>
+
+        <!-- idle: clock high up over the sky -->
+        <LinearLayout
+            android:id="@+id/lock_idle_top"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="34dp">
+            <TextClock
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:format12Hour="h:mm"
+                android:format24Hour="HH:mm"
+                android:textColor="#FFF0ECE4"
+                android:textSize="84sp"
+                android:fontFamily="serif"
+                android:includeFontPadding="false"
+                android:shadowColor="#80000000" android:shadowRadius="10" />
+            <TextClock
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center"
+                android:format12Hour="EEEE, d MMMM"
+                android:format24Hour="EEEE, d MMMM"
+                android:textColor="#FFEBE1CD"
+                android:textSize="17sp"
+                android:fontFamily="serif"
+                android:shadowColor="#80000000" android:shadowRadius="6" />
+        </LinearLayout>
+
+        <View
+            android:id="@+id/lock_spacer"
+            android:layout_width="1dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- playing: track info -->
+        <LinearLayout
+            android:id="@+id/lock_music"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal">
+            <TextView
+                android:id="@+id/lock_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textColor="#FFF0ECE4"
+                android:textSize="25sp"
+                android:fontFamily="serif" />
+            <TextView
+                android:id="@+id/lock_artist"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:gravity="center"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textColor="#FFA0A096"
+                android:textSize="14sp" />
+            <TextView
+                android:id="@+id/lock_route"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/badge"
+                android:paddingLeft="9dp"
+                android:paddingRight="9dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:textColor="#FFF0ECE4"
+                android:textSize="11sp"
+                android:fontFamily="sans-serif-medium" />
+            <org.bidhata.launcher.WaveformView
+                android:id="@+id/lock_wave"
+                android:layout_width="match_parent"
+                android:layout_height="30dp"
+                android:layout_marginTop="16dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:orientation="horizontal">
+                <TextView android:id="@+id/lock_pos"
+                    android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                    android:textColor="#FFA0A096" android:textSize="11sp" />
+                <TextView android:id="@+id/lock_dur"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textColor="#FFA0A096" android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/lock_resume"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:textColor="#FFEBE1CD"
+            android:textSize="13sp"
+            android:shadowColor="#99000000" android:shadowRadius="4" />
+
+        <LinearLayout
+            android:id="@+id/lock_controls"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal"
+            android:gravity="center">
+            <ImageButton android:id="@+id/lock_prev" android:contentDescription="@string/cd_prev"
+                android:layout_width="52dp" android:layout_height="52dp"
+                android:background="@drawable/btn_bg" android:src="@drawable/l_prev" />
+            <ImageButton android:id="@+id/lock_play" android:contentDescription="@string/cd_play"
+                android:layout_width="64dp" android:layout_height="64dp"
+                android:layout_marginLeft="36dp" android:layout_marginRight="36dp"
+                android:elevation="6dp"
+                android:background="@drawable/amber_disc" android:src="@drawable/l_play" />
+            <ImageButton android:id="@+id/lock_next" android:contentDescription="@string/cd_next"
+                android:layout_width="52dp" android:layout_height="52dp"
+                android:background="@drawable/btn_bg" android:src="@drawable/l_next" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/lock_unlock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="14dp"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:minHeight="48dp"
+            android:paddingLeft="24dp"
+            android:paddingRight="24dp"
+            android:paddingTop="6dp"
+            android:background="@drawable/btn_bg">
+            <ImageView
+                android:id="@+id/lock_chevron"
+                android:layout_width="28dp"
+                android:layout_height="12dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_chevron_up" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/swipe_unlock"
+                android:textColor="#FFD8CFBE"
+                android:textSize="12sp"
+                android:fontFamily="sans-serif-light"
+                android:shadowColor="#99000000" android:shadowRadius="4" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

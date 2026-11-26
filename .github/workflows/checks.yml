@@ -1,0 +1,50 @@
+# Quick checks on every push and pull request. Runs on GitHub's machines in a few minutes;
+# no ROM build, no proprietary files.
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shell scripts
+        run: |
+          shellcheck -S error extract-files.sh patches/apply.sh tools/*.sh rootdir/bin/*.sh
+          shellcheck -s sh -S warning tools/update-zip/update-binary
+
+      - name: Bundled app links still answer
+        run: |
+          while read -r name sum url; do
+            case "$name" in ''|\#*) continue ;; esac
+            [ "$url" = fdroid ] && url="https://f-droid.org/repo/$name"
+            curl -fsIL --retry 2 -o /dev/null "$url" || curl -fsIL -o /dev/null "https://f-droid.org/archive/$name" \
+              || { echo "::error::$name: $url does not answer"; exit 1; }
+            echo "ok $name"
+          done < tools/apps.lock
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-23 build-tools;23.0.3'
+
+      - name: Apps compile against Android 6.0
+        run: |
+          ANDROID_JAR=$ANDROID_SDK_ROOT/platforms/android-23/android.jar \
+          AAPT=$ANDROID_SDK_ROOT/build-tools/23.0.3/aapt \
+          tools/ci-check-apps.sh
+
+      - name: Patches apply to LineageOS cm-13.0
+        run: tools/ci-check-patches.sh

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/text1"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="48dp"
+    android:gravity="center_vertical"
+    android:drawableLeft="@drawable/ic_file"
+    android:drawablePadding="14dp"
+    android:paddingLeft="4dp"
+    android:singleLine="true"
+    android:ellipsize="middle"
+    android:textColor="@color/text"
+    android:textSize="14sp"
+    android:fontFamily="sans-serif-light"
+    android:background="?android:attr/selectableItemBackground" />

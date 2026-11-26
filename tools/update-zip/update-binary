@@ -1,0 +1,76 @@
+#!/sbin/sh
+# Bidhata-Q5 update installer, run by TWRP (Install -> pick the zip -> swipe).
+#
+# It only updates a player that already runs Bidhata-Q5. It writes boot and system, checks
+# both by reading them back, and clears the app cache. It never touches the bootloader, the
+# partition table, your apps or your music. Stock players need the first install (PC) instead.
+#
+# TWRP calls us as: update-binary <api> <fd> <zip>. BOOT_DEV/SYSTEM_DEV/P5_SIZE can be
+# overridden for testing on a PC.
+
+OUTFD=$2
+ZIP=$3
+BOOT_DEV=${BOOT_DEV:-/dev/bootimg}
+SYSTEM_DEV=${SYSTEM_DEV:-/dev/block/mmcblk0p5}
+
+ui() { echo "ui_print $*" > /proc/self/fd/$OUTFD; echo "ui_print" > /proc/self/fd/$OUTFD; }
+progress() { echo "set_progress $1" > /proc/self/fd/$OUTFD; }
+die() { ui "ERROR: $*"; ui "Nothing was written." ; exit 1; }
+# once writing has started, the safe advice changes
+fail() { ui "ERROR: $*"; ui "Do NOT reboot. Flash the zip again (TWRP still works)."; exit 1; }
+
+ui "Bidhata-Q5 $(unzip -p "$ZIP" version 2>/dev/null)"
+ui "-----------------------------"
+
+# 1. Right player, right layout. A stock Q5 has a much smaller system partition;
+#    writing there would spill into cache and data, so stop.
+dev=$(getprop ro.product.device)
+[ -n "$FORCE_DEVICE" ] && dev=$FORCE_DEVICE
+[ "$dev" = q5 ] || die "this zip is for the TIMMKOO Q5 only (found '$dev')"
+want=$(unzip -p "$ZIP" sizes | awk '$1=="system.img"{print $2}')
+have=${P5_SIZE:-$(( $(cat /sys/class/block/mmcblk0p5/size) * 512 ))}
+[ -n "$want" ] || die "zip is damaged (no size list)"
+[ "$have" -ge "$want" ] || die "this player still has the stock partition layout. Do the first install from a PC (see the guide)."
+
+# 2. Check the zip before writing anything: a bad download stops here.
+ui "Checking the download..."
+for f in boot.img system.img; do
+    sum=$(unzip -p "$ZIP" "$f" | md5sum | cut -d' ' -f1)
+    good=$(unzip -p "$ZIP" md5sums | awk -v f="$f" '$2==f{print $1}')
+    [ -n "$sum" ] && [ "$sum" = "$good" ] || die "$f is damaged; download the zip again"
+done
+progress 0.2
+
+# 3. Write. system can't be in use while we overwrite it.
+umount /system 2>/dev/null
+ui "Writing boot..."
+# boot goes through a file in /tmp (4.8 MB): dd from a file is the form proven on this
+# MediaTek boot device; a pipe can hand dd short blocks.
+TMPB=${TMPDIR:-/tmp}/bidhata-boot.img
+unzip -p "$ZIP" boot.img > "$TMPB" || die "could not unpack boot.img"
+dd if="$TMPB" of="$BOOT_DEV" bs=4096 2>/dev/null || fail "boot write failed"
+rm -f "$TMPB"
+ui "Writing system (a few minutes)..."
+unzip -p "$ZIP" system.img | dd of="$SYSTEM_DEV" bs=1048576 2>/dev/null || fail "system write failed"
+sync
+progress 0.8
+
+# 4. Read back exactly what we wrote and compare.
+ui "Verifying..."
+bsize=$(unzip -p "$ZIP" sizes | awk '$1=="boot.img"{print $2}')
+for f in boot.img system.img; do
+    if [ $f = boot.img ]; then got=$(dd if="$BOOT_DEV" bs=4096 count=$((bsize / 4096)) 2>/dev/null | md5sum)
+    else got=$(dd if="$SYSTEM_DEV" bs=1048576 count=$((want / 1048576)) 2>/dev/null | md5sum); fi
+    good=$(unzip -p "$ZIP" md5sums | awk -v f="$f" '$2==f{print $1}')
+    [ "${got%% *}" = "$good" ] || fail "$f did not verify"
+done
+progress 0.9
+
+# 5. Apps get recompiled for the new system on first boot.
+if [ -z "$P5_SIZE" ]; then
+    mount /data 2>/dev/null; mount /cache 2>/dev/null
+    rm -rf /data/dalvik-cache /cache/dalvik-cache
+fi
+progress 1.0
+ui "Done. Reboot System. First start takes a few minutes."
+exit 0

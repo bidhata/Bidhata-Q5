@@ -1,0 +1,74 @@
+# Push a tag like v0.4.8 and this builds the ROM and publishes a GitHub Release.
+#
+# A full Android build is too big for GitHub's free machines, so it runs on a self-hosted
+# runner (the maintainer's build PC) that already holds the source tree, the T-ROM zip and a
+# warm ccache. Only tags pushed by the maintainer trigger it; pull requests never reach it.
+# Setup: docs/RELEASING.md.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: [self-hosted, linux, bidhata]
+    timeout-minutes: 720
+    env:
+      SRC: ${{ vars.BIDHATA_SRC }}            # top of the cm-13.0 source tree on the runner
+      TROM_ZIP: ${{ vars.BIDHATA_TROM_ZIP }}  # T-ROM_V.2.3 zip on the runner
+      TWRP_IMG: ${{ vars.BIDHATA_TWRP_IMG }}  # prebuilt TWRP (goes into the PC package)
+      BUILD_CMD: ${{ vars.BIDHATA_BUILD_CMD }} # optional: override the build command
+      TAG: ${{ github.ref_name }}
+    steps:
+      - name: Tagged device tree into the source tree
+        run: |
+          cd "$SRC/device/timmkoo/q5"
+          git fetch --force --tags origin
+          git checkout --force "$TAG"
+          git clean -fdq -e prebuilt/lib -e prebuilt/preinstall
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+
+      - name: Patches, MediaTek files, apps
+        run: |
+          cd "$SRC"
+          bash device/timmkoo/q5/patches/apply.sh
+          [ -f vendor/timmkoo/q5/q5-vendor.mk ] && [ -f device/timmkoo/q5/prebuilt/lib/libmtcloader.so ] \
+            || (cd device/timmkoo/q5 && ./extract-files.sh "$TROM_ZIP")
+          bash device/timmkoo/q5/tools/fetch-apps.sh
+
+      - name: Build boot.img and system.img
+        run: |
+          cd "$SRC"
+          rm -rf out/target/product/q5/obj/ETC/system_build_prop_intermediates out/target/product/q5/system/build.prop
+          export BIDHATA_VERSION="$VERSION"
+          ${BUILD_CMD:-device/timmkoo/q5/tools/build.sh}
+          grep -q "ro.bidhata.version=Bidhata-Q5-$VERSION" out/target/product/q5/system/build.prop
+
+      - name: Package the downloads
+        run: |
+          R="$RUNNER_TEMP/release"; rm -rf "$R"; mkdir -p "$R"
+          O="$SRC/out/target/product/q5"; T="$SRC/device/timmkoo/q5/tools"
+          [ -f "$TWRP_IMG" ] || { echo "::error::BIDHATA_TWRP_IMG is not set or missing"; exit 1; }
+          cp "$TWRP_IMG" "$R/twrp-q5.img"
+          # TWRP update zip (players already on Bidhata) and the PC install package (from stock)
+          "$T/make-update-zip.sh" "$O/boot.img" "$O/system.img" "$VERSION" "$R/Bidhata-Q5-$VERSION-update.zip"
+          PATH="$SRC/out/host/linux-x86/bin:$PATH" "$T/make-pc-package.sh" "$O/boot.img" "$O/system.img" \
+              "$R/twrp-q5.img" "$TROM_ZIP" "$VERSION" "$R/Bidhata-Q5-$VERSION-pc-install.zip"
+          (cd "$R" && sha256sum ./*.zip ./*.img > SHA256SUMS && cat SHA256SUMS)
+          echo "R=$R" >> "$GITHUB_ENV"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" "$R"/* --repo "$GITHUB_REPOSITORY" \
+            --title "Bidhata-Q5 $VERSION" --generate-notes \
+            --notes "From stock firmware: Bidhata-Q5-$VERSION-pc-install.zip (Windows, first install). Already on Bidhata: Bidhata-Q5-$VERSION-update.zip, flash it in TWRP. Step-by-step guide: docs/INSTALL.md."

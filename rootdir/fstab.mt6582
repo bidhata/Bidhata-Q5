@@ -1,0 +1,16 @@
+# Bidhata-Q5 fstab (TIMMKOO Q5, MT6582, j5052 MBR + EBR1 layout)
+# p2 PROTECT_F, p3 PROTECT_S, p4 SEC_RO, p5 ANDROID, p6 CACHE, p7 USRDATA (see BIDHATA_Q5_BUILD.md)
+# boot/recovery/misc/nvram are not in the partition table; they are MediaTek dumchar devices.
+# data/cache: formattable = init formats them at full size when the first 4 KiB are zero (first boot after
+# the EBR1 layout change). No encryption footer during bring-up.
+#<src>                  <mnt_point>  <type> <mnt_flags and options>                                     <fs_mgr_flags>
+/dev/block/mmcblk0p5    /system      ext4   ro                                                          wait
+/dev/block/mmcblk0p7    /data        ext4   noatime,nosuid,nodev,noauto_da_alloc,discard                wait,check,formattable
+/dev/block/mmcblk0p6    /cache       ext4   noatime,nosuid,nodev,noauto_da_alloc,discard                wait,check,formattable
+/dev/block/mmcblk0p2    /protect_f   ext4   noatime,nosuid,nodev,noauto_da_alloc,commit=1,nodelalloc    wait
+/dev/block/mmcblk0p3    /protect_s   ext4   noatime,nosuid,nodev,noauto_da_alloc,commit=1,nodelalloc    wait
+/dev/bootimg            /boot        emmc   defaults                                                    defaults
+/dev/recovery           /recovery    emmc   defaults                                                    defaults
+/dev/misc               /misc        emmc   defaults                                                    defaults
+/devices/platform/mtk-msdc.1/mmc_host   auto   vfat   defaults                                          voldmanaged=sdcard1:auto
+/devices/platform/mt_usb                auto   vfat   defaults                                          voldmanaged=usbotg:auto
