@@ -32,16 +32,11 @@ import java.util.List;
  */
 public class HomeActivity extends Activity {
 
-    /** Tile id, label, icon, then the packages to try in order. */
-    private static final Object[][] TILES = {
-        { R.id.tile_music,    "Music",     R.drawable.c_music,  new String[] { "com.hiby.music", "org.videolan.vlc" } },
-        { R.id.tile_radio,    "Radio",     R.drawable.c_radio,  new String[] { "com.android.fmradio" } },
-        { R.id.tile_books,    "Books",     R.drawable.c_books,   new String[] { "org.coolreader", "org.koreader.launcher.fdroid", "org.koreader.launcher" } },
-        { R.id.tile_video,    "Video",     R.drawable.c_video,  new String[] { "com.mxtech.videoplayer.pro", "org.videolan.vlc", "com.mxtech.videoplayer.ad", "com.android.gallery3d" } },
-        { R.id.tile_recorder, "Recorder",  R.drawable.c_recorder,    new String[] { "org.bidhata.recorder" } },
-
-        { R.id.tile_files,    "Files",     R.drawable.c_files, new String[] { "me.zhanghai.android.files", "com.amaze.filemanager", "com.cyanogenmod.filemanager" } },
-    };
+    /** The eight tile slots of the layout, in reading order. */
+    private static final int[] SLOT_IDS = {
+        R.id.tile_music, R.id.tile_radio, R.id.tile_books, R.id.tile_video,
+        R.id.tile_recorder, R.id.tile_eq, R.id.tile_files, R.id.tile_more };
+    private long tilesStamp = -1;
 
     private final Handler handler = new Handler();
     private MediaSessionManager sessions;
@@ -117,30 +112,7 @@ public class HomeActivity extends Activity {
         play = (ImageButton) findViewById(R.id.np_play);
         progress = (ProgressBar) findViewById(R.id.np_progress);
 
-        for (final Object[] t : TILES) {
-            View tile = findViewById((Integer) t[0]);
-            ((TextView) tile.findViewById(R.id.tile_label)).setText((String) t[1]);
-            ((ImageView) tile.findViewById(R.id.tile_icon)).setImageResource((Integer) t[2]);
-            tile.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { launchFirst((String[]) t[3]); }
-            });
-        }
-        View eq = findViewById(R.id.tile_eq);
-        ((TextView) eq.findViewById(R.id.tile_label)).setText("Sound");
-        ((ImageView) eq.findViewById(R.id.tile_icon)).setImageResource(R.drawable.c_eq);
-        eq.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                startActivity(new Intent(HomeActivity.this, SoundActivity.class));
-            }
-        });
-        View more = findViewById(R.id.tile_more);
-        ((TextView) more.findViewById(R.id.tile_label)).setText("More");
-        ((ImageView) more.findViewById(R.id.tile_icon)).setImageResource(R.drawable.c_more);
-        more.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                startActivity(new Intent(HomeActivity.this, AppsActivity.class));
-            }
-        });
+        bindTiles();
 
         findViewById(R.id.np_prev).setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
@@ -164,10 +136,82 @@ public class HomeActivity extends Activity {
         if (savedInstanceState == null) entrance();
     }
 
+    /** Fills the tile slots from the home config (the user's file, or the built-in default). */
+    private void bindTiles() {
+        java.io.File f = HomeConfig.file();
+        tilesStamp = f.isFile() ? f.lastModified() : 0;
+        java.util.List<HomeConfig.Tile> tiles = HomeConfig.load();
+        if (HomeConfig.problem != null) {
+            android.widget.Toast.makeText(this, "home.json: " + HomeConfig.problem
+                    + ". Showing the default home.", android.widget.Toast.LENGTH_LONG).show();
+        }
+        for (int i = 0; i < SLOT_IDS.length; i++) {
+            View tile = findViewById(SLOT_IDS[i]);
+            if (i >= tiles.size()) { tile.setVisibility(View.INVISIBLE); continue; }
+            final HomeConfig.Tile t = tiles.get(i);
+            tile.setVisibility(View.VISIBLE);
+            ((TextView) tile.findViewById(R.id.tile_label)).setText(t.label);
+            ImageView icon = (ImageView) tile.findViewById(R.id.tile_icon);
+            Integer res = HomeConfig.ICONS.get(t.icon);
+            android.graphics.drawable.Drawable own = res == null ? appIcon(t.apps) : null;
+            if (own != null) icon.setImageDrawable(own);
+            else icon.setImageResource(res != null ? res : R.drawable.c_more);
+            tile.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    if ("sound".equals(t.action)) {
+                        startActivity(new Intent(HomeActivity.this, SoundActivity.class));
+                    } else if ("more".equals(t.action)) {
+                        startActivity(new Intent(HomeActivity.this, AppsActivity.class));
+                    } else {
+                        launchFirst(t.apps);
+                    }
+                }
+            });
+            tile.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override public boolean onLongClick(View v) { askEditHome(); return true; }
+            });
+        }
+    }
+
+    private android.graphics.drawable.Drawable appIcon(String[] packages) {
+        for (String pkg : packages) {
+            try { return getPackageManager().getApplicationIcon(pkg); }
+            catch (android.content.pm.PackageManager.NameNotFoundException e) { /* try the next */ }
+        }
+        return null;
+    }
+
+    /** Long-press on a tile: edit the tiles as a text file, or go back to the default. */
+    private void askEditHome() {
+        new android.app.AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+                .setTitle(R.string.home_edit_title)
+                .setItems(new CharSequence[] { getString(R.string.home_edit), getString(R.string.home_reset) },
+                        new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int which) {
+                        try {
+                            if (which == 1) {
+                                HomeConfig.writeDefault();
+                                bindTiles();
+                                return;
+                            }
+                            Intent edit = new Intent(Intent.ACTION_VIEW);
+                            edit.setDataAndType(android.net.Uri.fromFile(HomeConfig.ensureFile()), "text/plain");
+                            edit.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            // straight into the bundled text editor when it is there, no chooser
+                            edit.setPackage("net.gsantner.markor");
+                            if (edit.resolveActivity(getPackageManager()) == null) edit.setPackage(null);
+                            startActivity(edit);
+                        } catch (Exception e) {
+                            android.widget.Toast.makeText(HomeActivity.this, String.valueOf(e.getMessage()),
+                                    android.widget.Toast.LENGTH_LONG).show();
+                        }
+                    }
+                }).show();
+    }
+
     /** Card and tiles rise in one after another. Once, when the home screen is created. */
     private void entrance() {
-        int[] ids = { R.id.tile_music, R.id.tile_radio, R.id.tile_books, R.id.tile_video,
-                      R.id.tile_recorder, R.id.tile_eq, R.id.tile_files, R.id.tile_more };
+        int[] ids = SLOT_IDS;
         float rise = 16 * getResources().getDisplayMetrics().density;
         for (int i = 0; i < ids.length; i++) {
             View v = findViewById(ids[i]);
@@ -188,6 +232,9 @@ public class HomeActivity extends Activity {
             LockActivity.show(this);
             return;
         }
+        // came back from editing home.json: show the change
+        java.io.File hf = HomeConfig.file();
+        if ((hf.isFile() ? hf.lastModified() : 0) != tilesStamp) bindTiles();
         try {
             sessions.addOnActiveSessionsChangedListener(sessionsChanged, null);
             pickController(sessions.getActiveSessions(null));
@@ -232,7 +279,7 @@ public class HomeActivity extends Activity {
 
     private void openPlayer() {
         if (controller != null) launchFirst(new String[] { controller.getPackageName() });
-        else launchFirst((String[]) TILES[0][3]);
+        else launchFirst(new String[] { "com.hiby.music", "org.videolan.vlc" });
     }
 
     // ---- now playing --------------------------------------------------------------------------

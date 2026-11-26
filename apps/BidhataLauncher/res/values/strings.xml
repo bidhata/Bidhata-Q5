@@ -68,4 +68,7 @@
     <string name="mod_keep_awake_hint">No dimming or sleep while Cool Reader, VLC or the Recorder is in front.</string>
     <string name="mod_power">Scheduled power on / off</string>
     <string name="mod_power_hint">Off pauses the daily schedule without losing your times.</string>
+    <string name="home_edit_title">Home screen</string>
+    <string name="home_edit">Edit tiles (home.json)</string>
+    <string name="home_reset">Reset to default</string>
 </resources>
