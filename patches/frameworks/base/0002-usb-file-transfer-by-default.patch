@@ -1,0 +1,37 @@
+diff --git a/services/usb/java/com/android/server/usb/UsbDeviceManager.java b/services/usb/java/com/android/server/usb/UsbDeviceManager.java
+index 2886ce6f..f0c01964 100644
+--- a/services/usb/java/com/android/server/usb/UsbDeviceManager.java
++++ b/services/usb/java/com/android/server/usb/UsbDeviceManager.java
+@@ -335,7 +335,10 @@ public class UsbDeviceManager {
+         private boolean mConnected;
+         private boolean mHostConnected;
+         private boolean mConfigured;
+-        private boolean mUsbDataUnlocked;
++        // Bidhata: a music player's storage is meant to be reached from a PC, so file transfer is
++        // on by default instead of "charging only" on every plug-in. Turn it off with
++        // persist.bidhata.usb_files=false.
++        private boolean mUsbDataUnlocked = filesByDefault();
+         private String mCurrentFunctions;
+         private boolean mCurrentFunctionsApplied;
+         private UsbAccessory mCurrentAccessory;
+@@ -456,6 +459,10 @@ public class UsbDeviceManager {
+             return waitForState(config);
+         }
+ 
++        private boolean filesByDefault() {
++            return SystemProperties.getBoolean("persist.bidhata.usb_files", true);
++        }
++
+         private void setUsbDataUnlocked(boolean enable) {
+             if (DEBUG) Slog.d(TAG, "setUsbDataUnlocked: " + enable);
+             mUsbDataUnlocked = enable;
+@@ -697,7 +704,8 @@ public class UsbDeviceManager {
+                     mConfigured = (msg.arg2 == 1);
+                     if (!mConnected) {
+                         // When a disconnect occurs, relock access to sensitive user data
+-                        mUsbDataUnlocked = false;
++                        // (unless this player is set to offer its files by default)
++                        mUsbDataUnlocked = filesByDefault();
+                     }
+                     updateUsbNotification();
+                     updateAdbNotification();

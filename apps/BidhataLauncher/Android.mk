@@ -10,6 +10,6 @@ LOCAL_CERTIFICATE := platform
 LOCAL_PRIVILEGED_MODULE := true
 # Bidhata-Q5 is a music player, not a phone: everything below is left out of /system.
 # (Overrides only work from an app module, so the list lives here with the launcher.)
-LOCAL_OVERRIDES_PACKAGES := Launcher2 Launcher3 Browser Calendar CalendarProvider Camera2 Contacts Development Email Exchange2 Galaxy4 NoiseField PhaseBeam HoloSpiralWallpaper LiveWallpapers LiveWallpapersPicker PhotoTable Terminal SoundRecorder ExactCalculator CMFileManager LockClock Trebuchet CMWallpapers HexoLibre PhotoPhase WeatherProvider WeatherManagerService Screencast Profiles CMUpdater PicoTts WAPPushManager AudioFX CyanogenSetupWizard BluetoothMidiService PrintSpooler ThemeChooser Eleven WallpaperPicker WallpaperCropper
+LOCAL_OVERRIDES_PACKAGES := Launcher2 Launcher3 Browser Calendar CalendarProvider Camera2 Contacts Development Email Exchange2 Galaxy4 NoiseField PhaseBeam HoloSpiralWallpaper LiveWallpapers LiveWallpapersPicker PhotoTable Terminal SoundRecorder ExactCalculator CMFileManager LockClock Trebuchet CMWallpapers HexoLibre PhotoPhase WeatherProvider WeatherManagerService Screencast Profiles CMUpdater PicoTts WAPPushManager AudioFX CyanogenSetupWizard BluetoothMidiService PrintSpooler ThemeChooser Eleven WallpaperPicker WallpaperCropper LatinIME
 
 include $(BUILD_PACKAGE)

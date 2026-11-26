@@ -31,6 +31,6 @@ TARGET_SCREEN_HEIGHT := 854
 PRODUCT_BUILD_PROP_OVERRIDES += BUILD_DISPLAY_ID=Bidhata-Q5
 # Release version. CI passes the git tag (BIDHATA_VERSION=0.4.8); local builds keep this default.
 ifeq ($(BIDHATA_VERSION),)
-BIDHATA_VERSION := 0.4.7
+BIDHATA_VERSION := 0.4.8
 endif
 PRODUCT_PROPERTY_OVERRIDES += ro.bidhata.version=Bidhata-Q5-$(BIDHATA_VERSION)

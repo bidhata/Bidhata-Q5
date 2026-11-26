@@ -59,7 +59,8 @@ progress 0.8
 ui "Verifying..."
 bsize=$(unzip -p "$ZIP" sizes | awk '$1=="boot.img"{print $2}')
 for f in boot.img system.img; do
-    if [ $f = boot.img ]; then got=$(dd if="$BOOT_DEV" bs=4096 count=$((bsize / 4096)) 2>/dev/null | md5sum)
+    # boot images are a whole number of 2048-byte pages, not always of 4096
+    if [ $f = boot.img ]; then got=$(dd if="$BOOT_DEV" bs=512 count=$((bsize / 512)) 2>/dev/null | md5sum)
     else got=$(dd if="$SYSTEM_DEV" bs=1048576 count=$((want / 1048576)) 2>/dev/null | md5sum); fi
     good=$(unzip -p "$ZIP" md5sums | awk -v f="$f" '$2==f{print $1}')
     [ "${got%% *}" = "$good" ] || fail "$f did not verify"

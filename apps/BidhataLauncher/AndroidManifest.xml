@@ -16,6 +16,7 @@
     <uses-permission android:name="android.permission.REAL_GET_TASKS" />
     <!-- scheduled power off -->
     <uses-permission android:name="android.permission.SHUTDOWN" />
+    <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
     <uses-permission android:name="android.permission.REBOOT" />
     <uses-permission android:name="android.permission.RECOVERY" />
     <uses-permission android:name="android.permission.BLUETOOTH" />

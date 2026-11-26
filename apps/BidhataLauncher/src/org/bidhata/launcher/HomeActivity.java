@@ -56,6 +56,44 @@ public class HomeActivity extends Activity {
     private android.animation.ObjectAnimator spin;
     private boolean resumed;
 
+    // Swipe down anywhere on home to open notifications. The status bar is only 36 px tall
+    // on this screen, right against the bezel, and easy to miss with a finger.
+    private float swipeX, swipeY;
+    private boolean swipeDone;
+
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent e) {
+        switch (e.getActionMasked()) {
+            case android.view.MotionEvent.ACTION_DOWN:
+                swipeX = e.getX(); swipeY = e.getY(); swipeDone = false;
+                break;
+            case android.view.MotionEvent.ACTION_MOVE:
+                float dy = e.getY() - swipeY, dx = Math.abs(e.getX() - swipeX);
+                float need = 72 * getResources().getDisplayMetrics().density;
+                if (!swipeDone && dy > need && dy > 2 * dx) {
+                    swipeDone = true;
+                    openNotifications();
+                    // the tile under the finger must not fire as a tap
+                    android.view.MotionEvent cancel = android.view.MotionEvent.obtain(e);
+                    cancel.setAction(android.view.MotionEvent.ACTION_CANCEL);
+                    super.dispatchTouchEvent(cancel);
+                    cancel.recycle();
+                    return true;
+                }
+                break;
+        }
+        return swipeDone || super.dispatchTouchEvent(e);
+    }
+
+    private void openNotifications() {
+        try {
+            Object sb = getSystemService("statusbar");
+            Class.forName("android.app.StatusBarManager").getMethod("expandNotificationsPanel").invoke(sb);
+        } catch (Exception ex) {
+            android.util.Log.w("BidhataHome", "could not open notifications", ex);
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
