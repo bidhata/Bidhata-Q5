@@ -157,15 +157,32 @@ is checked automatically, and new releases are built from tags ([docs/RELEASING.
 
 ## Thanks
 
-- **LineageOS** (cm-13.0), which all of this sits on.
+Bidhata-Q5 stands on a lot of other people's work. Thank you to:
+
+**The system**
+- **LineageOS** (cm-13.0) and the **Android Open Source Project**, which all of this sits on.
+- **TheMuppets** and the Android One (sprout) maintainers, for the MT6582 pieces.
+- **TIMMKOO**, for the player and their T-ROM package the drivers and kernel come from.
+- **TWRP** (TeamWin), for the recovery.
+- **mtkclient** by Bjoern Kerler, which makes installing possible at all, and **Zadig / libwdi**
+  by Pete Batard for the USB driver.
+
+**The sound**
+- **JamesDSP** by James Fung, the system-wide audio engine.
 - **AutoEQ** by Jaakko Pasanen, for the headphone measurements and corrections.
-- **JamesDSP** for the system-wide audio engine.
-- **libldac** (Sony, Apache 2.0) for LDAC.
-- **GNOME** and project authors for the icons (CC-BY-SA 3.0 / their own licences; see
+- **libldac** (Sony, Apache 2.0) for LDAC, and the **Fraunhofer FDK AAC** encoder in Android.
+
+**The look**
+- **GNOME** and its app authors for the icons (CC-BY-SA 3.0 / their own licences; details in
   `apps/BidhataLauncher/ICONS.md`).
-- **HiBy**, **VideoLAN**, **Cool Reader**, **HeliBoard**, **Material Files**, **Markor**,
-  **F-Droid** and **Calculator++** for the apps that make it a complete player.
-- The people who tear these cheap players apart and write it up. You know who you are.
+- **Mozilla**, for the root certificate list that lets a 2015 Android talk to today's web.
+
+**The apps that make it a complete player**
+- **HiBy Music** (HiBy), **VLC** (VideoLAN), **Cool Reader** (Vadim Lopatin and contributors),
+  **HeliBoard** (Helium314 and contributors), **Material Files** (Hai Zhang),
+  **Markor** (Gregor Santner), **F-Droid**, and **Calculator++** (Sergey Solovyev).
+
+And the people who tear these cheap players apart and write it up. You know who you are.
 
 ## Licence
 
