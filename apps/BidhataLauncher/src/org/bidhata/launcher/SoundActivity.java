@@ -80,11 +80,10 @@ public class SoundActivity extends Activity {
         });
 
         android.widget.Switch wiredBt = (android.widget.Switch) findViewById(R.id.wired_bt);
-        wiredBt.setChecked(WiredBluetooth.isEnabled(this));
+        wiredBt.setChecked(Modules.isEnabled(this, WiredBluetooth.ID));
         wiredBt.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener() {
             @Override public void onCheckedChanged(android.widget.CompoundButton b, boolean on) {
-                getSharedPreferences(WiredBluetooth.PREFS, MODE_PRIVATE).edit()
-                        .putBoolean(WiredBluetooth.KEY_ENABLED, on).apply();
+                Modules.setEnabled(SoundActivity.this, WiredBluetooth.ID, on);
             }
         });
 

@@ -58,6 +58,10 @@
             android:name=".PowerActivity"
             android:screenOrientation="portrait"
             android:label="@string/power_title" />
+        <activity
+            android:name=".ModulesActivity"
+            android:screenOrientation="portrait"
+            android:label="@string/modules_title" />
         <receiver android:name=".PowerSchedule" android:exported="false" />
         <activity
             android:name=".SoundActivity"

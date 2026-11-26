@@ -25,13 +25,32 @@ public final class PowerSchedule extends BroadcastReceiver {
         return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
-    /** Call on boot and after any change: re-arms the off alarm and publishes the next on-time. */
+    static final String ID = "power_schedule";
+
+    static final Module MODULE = new Module() {
+        @Override public String id() { return ID; }
+        @Override public int title() { return R.string.mod_power; }
+        @Override public int summary() { return R.string.mod_power_hint; }
+        @Override public void start(Context app) { arm(app, true); }
+        @Override public void stop(Context app) { arm(app, false); }
+    };
+
+    /** Call after any change to the times; does nothing while the module is switched off. */
     static void apply(Context c) {
+        arm(c, Modules.isEnabled(c, ID));
+    }
+
+    /** Re-arms the off alarm and publishes the next on-time, or clears both. */
+    private static void arm(Context c, boolean active) {
         SharedPreferences p = prefs(c);
         AlarmManager am = (AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
         PendingIntent off = PendingIntent.getBroadcast(c, 0, new Intent(c, PowerSchedule.class),
                 PendingIntent.FLAG_UPDATE_CURRENT);
         am.cancel(off);
+        if (!active) {
+            Root.request("poweron:0");
+            return;
+        }
         if (p.getBoolean("off_on", false)) {
             long t = next(p.getInt("off_h", 23), p.getInt("off_m", 0));
             am.setExact(AlarmManager.RTC_WAKEUP, t, off);

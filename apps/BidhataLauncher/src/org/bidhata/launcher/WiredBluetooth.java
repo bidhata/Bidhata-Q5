@@ -22,20 +22,28 @@ final class WiredBluetooth extends BroadcastReceiver {
     static final String KEY_ENABLED = "enabled";
     private static final String KEY_WE_TURNED_OFF = "we_turned_off";
 
-    static void register(Context ctx) {
-        ctx.registerReceiver(new WiredBluetooth(), new IntentFilter(AudioManager.ACTION_HEADSET_PLUG));
-    }
+    static final String ID = "wired_bt";
 
-    static boolean isEnabled(Context ctx) {
-        return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_ENABLED, true);
-    }
+    static final Module MODULE = new Module() {
+        private WiredBluetooth receiver;
+        @Override public String id() { return ID; }
+        @Override public int title() { return R.string.mod_wired_bt; }
+        @Override public int summary() { return R.string.mod_wired_bt_hint; }
+        @Override public void start(Context app) {
+            receiver = new WiredBluetooth();
+            app.registerReceiver(receiver, new IntentFilter(AudioManager.ACTION_HEADSET_PLUG));
+        }
+        @Override public void stop(Context app) {
+            if (receiver != null) app.unregisterReceiver(receiver);
+            receiver = null;
+        }
+    };
 
     @Override
     public void onReceive(Context ctx, Intent i) {
         // the plug state is a sticky broadcast: ignore the copy we get just for registering
         if (isInitialStickyBroadcast()) return;
         SharedPreferences p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        if (!p.getBoolean(KEY_ENABLED, true)) return;
         BluetoothAdapter bt = BluetoothAdapter.getDefaultAdapter();
         if (bt == null) return;
 

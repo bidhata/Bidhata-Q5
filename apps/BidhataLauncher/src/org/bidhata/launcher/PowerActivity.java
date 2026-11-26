@@ -19,6 +19,11 @@ public class PowerActivity extends Activity {
         setContentView(R.layout.activity_power);
         row("off", R.id.pw_off_switch, R.id.pw_off_time, 23, 0);
         row("on", R.id.pw_on_switch, R.id.pw_on_time, 7, 0);
+        findViewById(R.id.pw_modules).setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                startActivity(new android.content.Intent(PowerActivity.this, ModulesActivity.class));
+            }
+        });
         findViewById(R.id.pw_recovery).setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { askRecovery(); }
         });

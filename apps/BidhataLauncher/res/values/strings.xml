@@ -61,4 +61,11 @@
     <string name="power_hint">Tap a time to change it. Turning on works from fully off; on a charger the player starts from the charging screen.</string>
     <string name="power_recovery">Restart into TWRP (for updates)</string>
     <string name="power_recovery_ask">The player restarts into TWRP. Music stops. Continue?</string>
+    <string name="modules_title">Background features</string>
+    <string name="mod_wired_bt">Wired headphones turn Bluetooth off</string>
+    <string name="mod_wired_bt_hint">Saves power while you listen on a cable; Bluetooth comes back when you unplug.</string>
+    <string name="mod_keep_awake">Keep the screen on for books and video</string>
+    <string name="mod_keep_awake_hint">No dimming or sleep while Cool Reader, VLC or the Recorder is in front.</string>
+    <string name="mod_power">Scheduled power on / off</string>
+    <string name="mod_power_hint">Off pauses the daily schedule without losing your times.</string>
 </resources>

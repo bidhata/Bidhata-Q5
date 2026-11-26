@@ -22,8 +22,6 @@ public class LockWatcher extends Application {
         // we start with the system at boot: cover the stock keyguard from the first frame
         LockActivity.show(this);
         AppList.preload(this);
-        WiredBluetooth.register(this);
-        KeepAwake.start(this);
-        PowerSchedule.apply(this);
+        Modules.startAll(this);
     }
 }

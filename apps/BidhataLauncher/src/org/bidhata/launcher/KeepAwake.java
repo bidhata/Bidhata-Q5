@@ -43,19 +43,37 @@ final class KeepAwake {
         lock.setReferenceCounted(false);
     }
 
-    static void start(Context ctx) {
-        final KeepAwake k = new KeepAwake(ctx);
-        IntentFilter f = new IntentFilter(Intent.ACTION_SCREEN_ON);
-        f.addAction(Intent.ACTION_SCREEN_OFF);
-        ctx.registerReceiver(new BroadcastReceiver() {
-            @Override public void onReceive(Context c, Intent i) {
-                k.screenOn = Intent.ACTION_SCREEN_ON.equals(i.getAction());
+    static final Module MODULE = new Module() {
+        private KeepAwake k;
+        private BroadcastReceiver screen;
+        @Override public String id() { return "keep_awake"; }
+        @Override public int title() { return R.string.mod_keep_awake; }
+        @Override public int summary() { return R.string.mod_keep_awake_hint; }
+        @Override public void start(Context app) {
+            k = new KeepAwake(app);
+            IntentFilter f = new IntentFilter(Intent.ACTION_SCREEN_ON);
+            f.addAction(Intent.ACTION_SCREEN_OFF);
+            screen = new BroadcastReceiver() {
+                @Override public void onReceive(Context c, Intent i) {
+                    k.screenOn = Intent.ACTION_SCREEN_ON.equals(i.getAction());
+                    k.handler.removeCallbacks(k.poll);
+                    if (k.screenOn) k.handler.post(k.poll); else k.release();
+                }
+            };
+            app.registerReceiver(screen, f);
+            k.handler.post(k.poll);
+        }
+        @Override public void stop(Context app) {
+            if (screen != null) app.unregisterReceiver(screen);
+            screen = null;
+            if (k != null) {
+                k.screenOn = false;
                 k.handler.removeCallbacks(k.poll);
-                if (k.screenOn) k.handler.post(k.poll); else k.release();
+                k.release();
             }
-        }, f);
-        k.handler.post(k.poll);
-    }
+            k = null;
+        }
+    };
 
     private final Runnable poll = new Runnable() {
         @Override public void run() {
