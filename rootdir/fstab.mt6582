@@ -12,5 +12,5 @@
 /dev/bootimg            /boot        emmc   defaults                                                    defaults
 /dev/recovery           /recovery    emmc   defaults                                                    defaults
 /dev/misc               /misc        emmc   defaults                                                    defaults
-/devices/platform/mtk-msdc.1/mmc_host   auto   vfat   defaults                                          voldmanaged=sdcard1:auto
-/devices/platform/mt_usb                auto   vfat   defaults                                          voldmanaged=usbotg:auto
+/devices/platform/mtk-msdc.1/mmc_host* auto   vfat   defaults                                          voldmanaged=sdcard1:auto
+/devices/platform/mt_usb*               auto   vfat   defaults                                          voldmanaged=usbotg:auto

@@ -92,19 +92,23 @@ if pm path org.coolreader >/dev/null 2>&1 && ! grep -qxF "cr3:v3" "$MARK"; then
     echo "cr3:v3" >> "$MARK"
 fi
 
-# HiBy Music, once: switch off its own lockscreen (OPTION.xml system_app: 0 HiBy lock,
-# 1 system, 2 off) so it never stacks on top of the Bidhata lockscreen.
+# HiBy Music, once: the Black theme (it starts in Green otherwise), and its own lockscreen off
+# (OPTION.xml system_app: 0 HiBy lock, 1 system, 2 off) so it never stacks on top of ours.
 H=/data/data/com.hiby.music
-if pm path com.hiby.music >/dev/null 2>&1 && ! grep -qxF "hiby:v1" "$MARK" && [ -d $H ]; then
+if pm path com.hiby.music >/dev/null 2>&1 && ! grep -qxF "hiby:v2" "$MARK" && [ -d $H ]; then
+    am force-stop com.hiby.music
     own=$(stat -c %u:%g $H)
     mkdir -p $H/shared_prefs
     O=$H/shared_prefs/OPTION.xml
-    if [ -f $O ]; then
-        sed -i '/name="system_app"/d' $O
-        sed -i 's#</map>#    <int name="system_app" value="2" />\n</map>#' $O
-    else
-        printf "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n<map>\n    <int name=\"system_app\" value=\"2\" />\n</map>\n" > $O
-    fi
+    [ -f $O ] || printf "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n<map>\n</map>\n" > $O
+    sed -i '/name="system_app"/d; /<string name="theme">/d' $O
+    sed -i 's#</map>#    <int name="system_app" value="2" />\n    <string name="theme">black</string>\n</map>#' $O
     chown $own $H/shared_prefs $O; chmod 771 $H/shared_prefs; chmod 660 $O
-    echo "hiby:v1" >> "$MARK"
+    echo "hiby:v2" >> "$MARK"
+fi
+
+# JamesDSP, once: it keeps a permanent "running" notification. The audio engine doesn't need it,
+# so mute the app's notifications (the same switch as Settings > Apps > JamesDSP > Block).
+if pm path james.dsp >/dev/null 2>&1 && ! grep -qxF "jdsp:v1" "$MARK"; then
+    appops set james.dsp POST_NOTIFICATION ignore && echo "jdsp:v1" >> "$MARK"
 fi
