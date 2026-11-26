@@ -36,7 +36,6 @@ public class HomeActivity extends Activity {
     private static final int[] SLOT_IDS = {
         R.id.tile_music, R.id.tile_radio, R.id.tile_books, R.id.tile_video,
         R.id.tile_recorder, R.id.tile_eq, R.id.tile_files, R.id.tile_more };
-    private long tilesStamp = -1;
 
     private final Handler handler = new Handler();
     private MediaSessionManager sessions;
@@ -138,11 +137,11 @@ public class HomeActivity extends Activity {
 
     /** Fills the tile slots from the home config (the user's file, or the built-in default). */
     private void bindTiles() {
-        java.io.File f = HomeConfig.file();
-        tilesStamp = f.isFile() ? f.lastModified() : 0;
-        java.util.List<HomeConfig.Tile> tiles = HomeConfig.load();
-        if (HomeConfig.problem != null) {
-            android.widget.Toast.makeText(this, "home.json: " + HomeConfig.problem
+        java.util.List<HomeConfig.Tile> tiles = HomeConfig.tiles();
+        String problem = HomeConfig.problem;
+        if (problem != null) {
+            HomeConfig.problem = null;   // say it once
+            android.widget.Toast.makeText(this, "home.json: " + problem
                     + ". Showing the default home.", android.widget.Toast.LENGTH_LONG).show();
         }
         for (int i = 0; i < SLOT_IDS.length; i++) {
@@ -188,25 +187,58 @@ public class HomeActivity extends Activity {
                 .setItems(new CharSequence[] { getString(R.string.home_edit), getString(R.string.home_reset) },
                         new android.content.DialogInterface.OnClickListener() {
                     @Override public void onClick(android.content.DialogInterface d, int which) {
-                        try {
-                            if (which == 1) {
-                                HomeConfig.writeDefault();
-                                bindTiles();
-                                return;
-                            }
-                            Intent edit = new Intent(Intent.ACTION_VIEW);
-                            edit.setDataAndType(android.net.Uri.fromFile(HomeConfig.ensureFile()), "text/plain");
-                            edit.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                            // straight into the bundled text editor when it is there, no chooser
-                            edit.setPackage("net.gsantner.markor");
-                            if (edit.resolveActivity(getPackageManager()) == null) edit.setPackage(null);
-                            startActivity(edit);
-                        } catch (Exception e) {
-                            android.widget.Toast.makeText(HomeActivity.this, String.valueOf(e.getMessage()),
-                                    android.widget.Toast.LENGTH_LONG).show();
-                        }
+                        editHome(which == 1);
                     }
                 }).show();
+    }
+
+    /** Writes the file off the main thread, then opens the editor or redraws the tiles. */
+    private void editHome(final boolean reset) {
+        new android.os.AsyncTask<Void, Void, Object>() {
+            @Override protected Object doInBackground(Void... v) {
+                try {
+                    if (reset) {
+                        HomeConfig.writeDefault();
+                        HomeConfig.invalidate();
+                        HomeConfig.refresh();
+                        return null;
+                    }
+                    return HomeConfig.ensureFile();
+                } catch (Exception e) {
+                    return e;
+                }
+            }
+            @Override protected void onPostExecute(Object r) {
+                if (r instanceof Exception) {
+                    android.widget.Toast.makeText(HomeActivity.this,
+                            String.valueOf(((Exception) r).getMessage()), android.widget.Toast.LENGTH_LONG).show();
+                } else if (r == null) {
+                    bindTiles();
+                } else {
+                    Intent edit = new Intent(Intent.ACTION_VIEW);
+                    edit.setDataAndType(android.net.Uri.fromFile((java.io.File) r), "text/plain");
+                    edit.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    // straight into the bundled text editor when it is there, no chooser
+                    edit.setPackage("net.gsantner.markor");
+                    if (edit.resolveActivity(getPackageManager()) == null) edit.setPackage(null);
+                    try { startActivity(edit); }
+                    catch (RuntimeException e) {
+                        android.widget.Toast.makeText(HomeActivity.this, String.valueOf(e.getMessage()),
+                                android.widget.Toast.LENGTH_LONG).show();
+                    }
+                }
+            }
+        }.execute();
+    }
+
+    /** Looks for a changed home.json in the background; redraws the tiles only if it changed. */
+    private void refreshTiles() {
+        new android.os.AsyncTask<Void, Void, Boolean>() {
+            @Override protected Boolean doInBackground(Void... v) { return HomeConfig.refresh(); }
+            @Override protected void onPostExecute(Boolean changed) {
+                if (changed && !isFinishing()) bindTiles();
+            }
+        }.execute();
     }
 
     /** Card and tiles rise in one after another. Once, when the home screen is created. */
@@ -232,9 +264,7 @@ public class HomeActivity extends Activity {
             LockActivity.show(this);
             return;
         }
-        // came back from editing home.json: show the change
-        java.io.File hf = HomeConfig.file();
-        if ((hf.isFile() ? hf.lastModified() : 0) != tilesStamp) bindTiles();
+        refreshTiles();   // came back from editing home.json: show the change
         try {
             sessions.addOnActiveSessionsChangedListener(sessionsChanged, null);
             pickController(sessions.getActiveSessions(null));

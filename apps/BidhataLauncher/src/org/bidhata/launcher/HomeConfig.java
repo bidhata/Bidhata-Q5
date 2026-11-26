@@ -66,7 +66,41 @@ final class HomeConfig {
             + "}\n";
 
     /** Set when the user's file was there but unusable; home shows it once as a toast. */
-    static String problem;
+    static volatile String problem;
+
+    // What home shows right now. Files are only touched off the main thread (refresh()); the
+    // home screen draws from this cache, so opening it never waits for storage.
+    private static volatile List<Tile> current;
+    private static long stamp = -1;
+
+    /** Tiles to show now: the last loaded config, or the built-in default before the first load. */
+    static List<Tile> tiles() {
+        List<Tile> t = current;
+        if (t != null) return t;
+        try {
+            return parse(DEFAULT);
+        } catch (Exception e) {
+            throw new IllegalStateException("built-in home config is broken", e);
+        }
+    }
+
+    /**
+     * Re-reads home.json if it changed. Call from a background thread.
+     * @return true when the tiles to show are different from before
+     */
+    static synchronized boolean refresh() {
+        File f = file();
+        long now = f.isFile() ? f.lastModified() : 0;
+        if (current != null && now == stamp) return false;
+        stamp = now;
+        current = load();
+        return true;
+    }
+
+    /** After the launcher itself rewrote the file: forget what was cached. */
+    static synchronized void invalidate() {
+        stamp = -1;
+    }
 
     private HomeConfig() { }
 

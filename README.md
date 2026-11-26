@@ -29,18 +29,21 @@ throwaway gadget into a DAP I actually reach for.
 - **LDAC** (990 / 660 / 330 kbps, or adaptive), **AAC** and **SBC XQ** over Bluetooth,
   added to the stock Bluetooth stack from source. Pick the codec and LDAC quality right on
   the Sound page.
-- **AutoEQ built in.** Type your headphone model, tap it, done. Around 8,800 measured
-  headphones from the AutoEQ database, applied system-wide through JamesDSP, separately
-  for wired, Bluetooth and the speaker. Profiles are saved, so they work offline too.
+- **AutoEQ built in.** Around 8,800 measured headphones from the AutoEQ database, applied
+  system-wide through JamesDSP, with a separate profile for wired, Bluetooth and the speaker.
+  How to use it is below.
 - **Better resampling** (Android's high-quality resampler) for anything that isn't 44.1 kHz.
 - **Louder speaker.** The stock volume table held the amp 11 dB below its limit. Now it's 3 dB.
 - **USB DACs** work through an OTG adapter (the kernel has USB audio support).
-- **HiBy Music** comes preinstalled, the last version that still runs on this hardware.
+- **HiBy Music** comes preinstalled, the last version that still runs on this hardware, set
+  to its Black theme and with its own lockscreen off so it doesn't fight ours.
 
 **Looks like a DAP, not a phone**
 
 - **Listening Room** home: big tiles, a now-playing strip that only shows up while
   something plays, and a turning vinyl record when a track has no cover art.
+- **Swipe down anywhere** on home to open notifications (the status bar on this screen is
+  too thin to hit reliably).
 - A **lockscreen built around the music**: the cover fades into the page, a waveform
   progress bar, big controls. When nothing plays you get a calm landscape and a big clock.
 - A custom boot animation, and **you can put your own name on it** (More → Boot screen name).
@@ -50,11 +53,14 @@ throwaway gadget into a DAP I actually reach for.
 
 - **Apps**: Cool Reader (page-curl animation, Bengali and other Indic scripts rendered
   properly), VLC, Material Files, Markor, F-Droid, Calculator++, alarm clock, HeliBoard keyboard.
+- **microSD and USB drives** show up in apps and on your PC, and **file transfer is on as
+  soon as you plug in**: no "USB for charging" tap first.
 - **Wi-Fi Share**: browse and copy music to and from the player from any browser on your network.
 - **Scheduled power**: switch off at night, switch itself back on in the morning.
 - **Bluetooth switches off** by itself when you plug in wired headphones, and back on when you unplug.
 - The screen **stays awake while reading, watching video or recording**.
-- All the phone stuff (dialer, contacts, calendar, camera, browser) is gone.
+- **Updates without a PC**: More → Power & updates → Restart into TWRP, then install the zip.
+- All the phone stuff (dialer, contacts, calendar, camera, browser, gallery) is gone.
 
 **Quietly sturdy**
 
@@ -62,6 +68,77 @@ throwaway gadget into a DAP I actually reach for.
 - 256 MB of compressed RAM so apps stay open on a 1 GB device.
 - Doze, calmer Wi-Fi scanning and fewer background services for better battery.
 - A unique Bluetooth and Wi-Fi address per unit (the stock firmware shipped every unit with the same one).
+- Background features run as separate modules: if one ever fails, it is switched off and
+  the home screen carries on.
+
+---
+
+## Make it yours
+
+Everything here is done on the player itself; no PC, no root, no app to install.
+
+### AutoEQ for your headphones
+
+1. Home → **Sound**.
+2. Choose where it applies: **Wired**, **Bluetooth** or **Speaker**. Each keeps its own profile,
+   so your IEMs and your Bluetooth headphones can both be corrected.
+3. Type at least two letters of your headphone model (for example `hd 650` or `moondrop`) and
+   tap it in the list.
+4. Done. The correction is downloaded once and applied through JamesDSP straight away.
+
+The first search downloads the AutoEQ list (a few seconds on Wi-Fi). After that, the list and
+every profile you picked are kept on the player and work offline. **AutoEQ off** switches the
+correction off for the selected output; **JamesDSP…** opens the full equaliser for manual
+tweaking.
+
+### Bluetooth codec and quality
+
+Home → **Sound** → **Bluetooth codec**: Auto (best your headphones support), LDAC, AAC or SBC XQ.
+For LDAC you can also fix the quality: 990 kbps (best), 660, 330, or adaptive (drops quality
+instead of dropping out when the signal is weak). The codec in use shows on the home screen
+while music plays. Reconnect the headphones after changing it.
+
+### Home screen tiles
+
+Long-press any tile on home → **Edit tiles**. This opens `/sdcard/Bidhata/home.json` in Markor:
+
+```json
+{"tiles": [
+  {"label": "Music", "icon": "music", "apps": ["com.hiby.music", "org.videolan.vlc"]},
+  {"label": "Notes", "icon": "notes", "apps": ["net.gsantner.markor"]},
+  {"label": "Calc",  "icon": "app",   "apps": ["org.solovyev.android.calculator"]},
+  {"label": "Sound", "icon": "sound", "action": "sound"},
+  {"label": "More",  "icon": "more",  "action": "more"}
+]}
+```
+
+- Up to 8 tiles, in reading order.
+- `apps`: package names; the first one that is installed opens. Any app works.
+- `icon`: `music radio books video recorder sound files more calculator gallery notes settings
+  store web`, or `app` to use the app's own icon.
+- `action`: `sound` (the Sound page) or `more` (the app list) instead of `apps`.
+
+Save and go back to home; the tiles change at once. If the file has a mistake, home shows the
+default tiles with a short note saying what was wrong. **More** is always kept, so you can't
+lock yourself out. Long-press → **Reset to default** brings back the original home.
+
+### Background features
+
+More → Power & updates → **Background features** has a switch for each of these:
+
+- Wired headphones turn Bluetooth off (and back on when you unplug)
+- Keep the screen on for books and video (Cool Reader, VLC, Recorder)
+- Scheduled power on / off (switching it off keeps your times)
+
+### More ways to make it yours
+
+- **Boot screen name**: More → Boot screen name. Your name, drawn into the boot animation.
+- **Scheduled power**: More → Power & updates. Pick the off and on times; it powers on by itself
+  even from fully off.
+- **File transfer by default**: if you'd rather have the phone-style "charging only" until you
+  choose, run `setprop persist.bidhata.usb_files false` from a root shell.
+- **Add your own app to More**: an app can put a row on the More page by declaring one intent
+  filter. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
@@ -103,6 +180,7 @@ throwaway gadget into a DAP I actually reach for.
 | Recorder | ✅ |
 | Charging (also when switched off) | ✅ |
 | Scheduled power on/off | ✅ |
+| microSD, USB drives (OTG), file transfer to a PC | ✅ |
 | USB DAC (OTG) | should work, test welcome |
 | SELinux | permissive for now |
 

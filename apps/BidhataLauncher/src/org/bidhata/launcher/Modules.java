@@ -25,10 +25,19 @@ final class Modules {
 
     private Modules() { }
 
-    static void startAll(Context app) {
-        for (Module m : ALL) {
-            if (isEnabled(app, m.id())) start(app, m);
-        }
+    /** Reads the switches off the main thread, then starts the enabled modules on it. */
+    static void startAll(final Context app) {
+        final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
+        new Thread("bidhata-modules") {
+            @Override public void run() {
+                for (final Module m : ALL) {
+                    if (!isEnabled(app, m.id())) continue;
+                    main.post(new Runnable() {
+                        @Override public void run() { Modules.start(app, m); }
+                    });
+                }
+            }
+        }.start();
     }
 
     static boolean isEnabled(Context c, String id) {
