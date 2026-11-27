@@ -288,22 +288,17 @@ sources.
 It doesn't have to stay there.
 </p>
 
-### ⭐ If Bidhata-Q5 made your Q5 worth picking up again
-
-- **Star the repo.** It's the only way other Q5 owners find this; GitHub search ranks by stars.
-- **Share it** in the place where you found your Q5: a Reddit thread, a Head-Fi post, a
-  Facebook group, a WhatsApp chat with that one friend who also bought one on sale.
-- **Post a photo of your Q5 running it**, with your headphones and the codec on the home
-  screen, in [Discussions](https://github.com/bidhata/Bidhata-Q5/discussions). I read every one.
-- **Tell me what broke.** An [issue](https://github.com/bidhata/Bidhata-Q5/issues) with a log is
-  worth more than a hundred "works for me".
-
 ### 🔭 What's next
 
-- **0.5**: a launcher you can reshape without touching code, and more polish everywhere.
-- **More players**: other cheap MediaTek DAPs that deserve the same treatment. Which one is in
-  *your* drawer? Open an issue and tell me the model.
+The Q5 comes first, and it keeps getting better until it's the best little DAP it can be.
+
+- **0.5**: a launcher you can reshape without touching code, tuned for memory and speed.
 - **An offline voice translator** on a music player? Being tested right now. 👀
+- **Your bug reports** decide what gets fixed next. An
+  [issue](https://github.com/bidhata/Bidhata-Q5/issues) with a log is worth more than a hundred
+  "works for me".
+
+Other cheap players may follow one day, once the Q5 is done right.
 
 ### 💖 Keep the reboots coming
 
@@ -325,8 +320,6 @@ Every dollar, and every star, keeps this project alive.
 ### 👋 Who made this
 
 **Krish Paul**: not a phone company, just someone who can't leave a cheap gadget alone.
-Also behind [Hiby-R1-Mod](https://github.com/bidhata/Hiby-R1-Mod), a byte-by-byte teardown and
-mod of the HiBy R1 firmware.
 
 📧 [me@krishnendu.com](mailto:me@krishnendu.com) · 🐙 [@bidhata](https://github.com/bidhata)
 
