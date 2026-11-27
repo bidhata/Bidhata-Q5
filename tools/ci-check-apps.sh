@@ -14,7 +14,7 @@ for app in "$HERE"/apps/*/; do
     mkdir -p "$WORK/$name/gen" "$WORK/$name/classes"
     if "$AAPT" package -f -m -S "$app/res" -M "$app/AndroidManifest.xml" \
             -I "$ANDROID_JAR" -J "$WORK/$name/gen" >"$WORK/$name/aapt.log" 2>&1 &&
-       javac -nowarn -encoding UTF-8 -source 8 -target 8 -bootclasspath "$ANDROID_JAR" \
+       javac -nowarn -encoding UTF-8 -source 8 -target 8 -Xlint:-options -bootclasspath "$ANDROID_JAR" \
             -d "$WORK/$name/classes" $(find "$WORK/$name/gen" "$app/src" -name '*.java') \
             >"$WORK/$name/javac.log" 2>&1; then
         echo "ok      $name"
