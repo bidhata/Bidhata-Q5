@@ -4,6 +4,14 @@
 
 **A cheap little music player, finally done right.**
 
+<p align="center">
+  <a href="https://github.com/bidhata/Bidhata-Q5/stargazers"><img src="https://img.shields.io/github/stars/bidhata/Bidhata-Q5?style=for-the-badge&color=f0841e" alt="Stars"></a>
+  <a href="https://github.com/bidhata/Bidhata-Q5/releases"><img src="https://img.shields.io/github/v/release/bidhata/Bidhata-Q5?style=for-the-badge&color=f0841e&label=download" alt="Download"></a>
+  <img src="https://img.shields.io/badge/Android-6.0.1-3ddc84?style=for-the-badge&logo=android&logoColor=white" alt="Android 6.0.1">
+  <img src="https://img.shields.io/badge/Bluetooth-LDAC%20%C2%B7%20AAC%20%C2%B7%20SBC%20XQ-0a84ff?style=for-the-badge" alt="LDAC, AAC, SBC XQ">
+  <a href="https://github.com/sponsors/bidhata"><img src="https://img.shields.io/badge/sponsor-%E2%9D%A4-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Sponsor"></a>
+</p>
+
 The TIMMKOO Q5 is one of those budget Android DAPs that costs less than a decent pair of earphones.
 The hardware is honestly decent: a quad-core MediaTek chip, a proper 3.5 mm output,
 Bluetooth, Wi-Fi, FM radio, a microSD slot. The software it ships with is not. It's
@@ -273,5 +281,54 @@ sources.
 
 ---
 
-Made with patience and a lot of reboots by **Krish Paul**.
-If it brought your Q5 back to life, a ⭐ helps other owners find it.
+<h2 align="center">🎧 Your drawer DAP deserves a second life</h2>
+
+<p align="center">
+<b>Somewhere a Q5 is sitting in a drawer with a flat battery and a 2014 Android.</b><br>
+It doesn't have to stay there.
+</p>
+
+### ⭐ If Bidhata-Q5 made your Q5 worth picking up again
+
+- **Star the repo.** It's the only way other Q5 owners find this; GitHub search ranks by stars.
+- **Share it** in the place where you found your Q5: a Reddit thread, a Head-Fi post, a
+  Facebook group, a WhatsApp chat with that one friend who also bought one on sale.
+- **Post a photo of your Q5 running it**, with your headphones and the codec on the home
+  screen, in [Discussions](https://github.com/bidhata/Bidhata-Q5/discussions). I read every one.
+- **Tell me what broke.** An [issue](https://github.com/bidhata/Bidhata-Q5/issues) with a log is
+  worth more than a hundred "works for me".
+
+### 🔭 What's next
+
+- **0.5**: a launcher you can reshape without touching code, and more polish everywhere.
+- **More players**: other cheap MediaTek DAPs that deserve the same treatment. Which one is in
+  *your* drawer? Open an issue and tell me the model.
+- **An offline voice translator** on a music player? Being tested right now. 👀
+
+### 💖 Keep the reboots coming
+
+Every build here was flashed on a real player, got stuck on the logo, got rescued, and was flashed again. Your support
+pays for the next cheap player to rescue and the hours spent inside its firmware.
+
+<p align="center">
+  <a href="https://github.com/sponsors/bidhata?frequency=one-time&sponsor=bidhata"><img src="https://img.shields.io/badge/Sponsor%20on%20GitHub-%E2%9D%A4-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Sponsor on GitHub"></a>
+</p>
+
+| | |
+|---|---|
+| **GitHub Sponsors** | [github.com/sponsors/bidhata](https://github.com/sponsors/bidhata?frequency=one-time&sponsor=bidhata) |
+| **PayPal** | bidhata@gmail.com |
+| **USDT (BEP20)** | `0xcb6989985389f0a983bb20582d97e665128735e1` |
+
+Every dollar, and every star, keeps this project alive.
+
+### 👋 Who made this
+
+**Krish Paul**: not a phone company, just someone who can't leave a cheap gadget alone.
+Also behind [Hiby-R1-Mod](https://github.com/bidhata/Hiby-R1-Mod), a byte-by-byte teardown and
+mod of the HiBy R1 firmware.
+
+📧 [me@krishnendu.com](mailto:me@krishnendu.com) · 🐙 [@bidhata](https://github.com/bidhata)
+
+<p align="center"><sub>Made with patience, a soldering-iron level of stubbornness and a lot of reboots.<br>
+If it brought your Q5 back to life, ⭐ the repo. It takes one second and it really helps.</sub></p>
