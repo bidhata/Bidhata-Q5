@@ -131,6 +131,12 @@ You need the `backup` folder from Part A5, made while the player ran stock.
 > This part is new and hasn't been run on a real player yet. If you try it, please report
 > back in the Issues either way.
 
+**No backup, or the restore didn't work?** The community tool **Innioasis Updater CE**
+installs and restores official firmware on Innioasis and TIMMKOO players, on Windows, macOS
+and Linux. Its getting-started guide is here: <https://innioasis.app/guide.html#platform>. It puts stock firmware back without
+needing your backup (your player's own calibration is not restored that way, which is why
+`backup.bat` is still worth running first).
+
 1. Put the `backup` folder back into the unpacked package folder (next to `install.bat`).
 2. Plug the player in, double-click **`restore-stock.bat`**, type **YES**, and press the
    reset hole when it asks.
@@ -164,5 +170,9 @@ clears the old data that sometimes confuses a first start.
 
 **TWRP says "this player still has the stock partition layout"**
 The update zip only updates. Do Part A first.
+
+**Nothing here helps and you just want the stock firmware back**
+Use **Innioasis Updater CE** to reinstall the official TIMMKOO firmware:
+<https://innioasis.app/guide.html#platform>.
 
 Still stuck? Open an Issue on GitHub with what you did and the `.log` file from the folder.

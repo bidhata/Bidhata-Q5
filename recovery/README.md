@@ -5,6 +5,10 @@ package, see [docs/INSTALL.md](../docs/INSTALL.md)) puts it in place. From then 
 **More → Power & updates → Restart into TWRP** gets you there. There's no known key combo
 from power-off.
 
+Want the stock firmware back instead? See *Back to stock* in the install guide, or use the
+community [Innioasis Updater CE](https://innioasis.app/guide.html#platform), which restores
+official firmware on Innioasis and TIMMKOO players.
+
 For the curious: mtkclient can't address partitions by name on this player. Recovery is
 written by address, `wo 0x3580000 0x1000000 twrp-q5.img`.
 

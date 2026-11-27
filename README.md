@@ -207,7 +207,9 @@ double-clicking scripts and waiting. The short version:
 - **Updates** (no PC): copy `Bidhata-Q5-<version>-update.zip` to the player, tap
   **More → Power & updates → Restart into TWRP**, and install the zip. Music, apps and settings
   stay.
-- **Changed your mind?** `restore-stock.bat` puts your backup back.
+- **Changed your mind?** `restore-stock.bat` puts your backup back. No backup? The community
+  [Innioasis Updater CE](https://innioasis.app/guide.html#platform) can reinstall the official
+  TIMMKOO firmware.
 
 > The first install **erases the player's internal storage** (the microSD card is safe), so
 > copy your music off first. The scripts never touch the bootloader, so a failed attempt can
@@ -252,6 +254,8 @@ Bidhata-Q5 stands on a lot of other people's work. Thank you to:
 - **TWRP** (TeamWin), for the recovery.
 - **mtkclient** by Bjoern Kerler, which makes installing possible at all, and **Zadig / libwdi**
   by Pete Batard for the USB driver.
+- **Innioasis Updater CE**, the community tool that gets Innioasis and TIMMKOO players back to
+  official firmware ([guide](https://innioasis.app/guide.html#platform)).
 
 **The sound**
 - **JamesDSP** by James Fung, the system-wide audio engine.
