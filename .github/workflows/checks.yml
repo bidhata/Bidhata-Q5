@@ -38,12 +38,12 @@ jobs:
 
       - uses: android-actions/setup-android@v3
         with:
-          packages: 'platforms;android-23 build-tools;23.0.3'
+          packages: 'platforms;android-23 build-tools;34.0.0'
 
       - name: Apps compile against Android 6.0
         run: |
           ANDROID_JAR=$ANDROID_SDK_ROOT/platforms/android-23/android.jar \
-          AAPT=$ANDROID_SDK_ROOT/build-tools/23.0.3/aapt \
+          AAPT=$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt \
           tools/ci-check-apps.sh
 
       - name: Patches apply to LineageOS cm-13.0
